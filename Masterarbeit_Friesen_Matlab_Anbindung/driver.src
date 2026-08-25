@@ -1,0 +1,207 @@
+&ACCESS RVP
+&REL 176
+&PARAM DISKPATH = KRC:\R1\Program
+DEF  driver ( )
+;FOLD INI;%{PE}
+  ;FOLD BASISTECH INI
+    GLOBAL INTERRUPT DECL 3 WHEN $STOPMESS==TRUE DO IR_STOPM ( )
+    INTERRUPT ON 3 
+    BAS (#INITMOV,0 )
+  ;ENDFOLD (BASISTECH INI)
+  ;FOLD USER INI
+    ;Make your modifications here
+
+  ;ENDFOLD (USER INI)
+;ENDFOLD (INI)
+PROGVAR = 2
+ACTFLAG = FALSE
+ENDPROG= FALSE
+       MAT_POS1 = {X 260,Y 0, Z 610,A -27,B 76,C -24,S 6,T 50}
+;SAK-Fahrt
+temp =$OV_PRO   
+$OV_PRO = 100
+$ORI_TYPE = #JOINT
+;FOLD SPTP XHOME CONT Vel=50 % PDAT1 Tool[1] Base[0]  ;%{PE}
+;FOLD Parameters ;%{h}
+;Params IlfProvider=kukaroboter.basistech.inlineforms.movement.spline; Kuka.IsGlobalPoint=False; Kuka.PointName=XHOME; Kuka.BlendingEnabled=True; Kuka.MoveDataPtpName=PDAT1; Kuka.VelocityPtp=50; Kuka.VelocityFieldEnabled=True; Kuka.ColDetectFieldEnabled=True; Kuka.CurrentCDSetIndex=0; Kuka.MovementParameterFieldEnabled=True; IlfCommand=SPTP
+;ENDFOLD
+SPTP XHOME WITH $VEL_AXIS[1] = SVEL_JOINT(100.0), $TOOL = STOOL2(FXHOME), $BASE = SBASE(FXHOME.BASE_NO), $IPO_MODE = SIPO_MODE(FXHOME.IPO_FRAME), $LOAD = SLOAD(FXHOME.TOOL_NO), $ACC_AXIS[1] = SACC_JOINT(PPDAT1), $APO = SAPO_PTP(PPDAT1), $GEAR_JERK[1] = SGEAR_JERK(PPDAT1), $COLLMON_TOL_PRO[1] = USE_CM_PRO_VALUES(0)
+;ENDFOLD
+$OV_PRO = temp
+LOOP
+   SWITCH PROGVAR
+        CASE 1
+   $ADVANCE = 0
+   ENDPROG = FALSE
+   FINISH1 = FALSE
+   FINISH2 = FALSE
+   ACT_MOVE = 1
+   STARTVAR = FALSE
+   GRP1 = 1
+   GRP2 = 1
+   VEL1 = 50.0
+   VEL2 = 50.0
+   $OV_PRO = 30
+   ;FOLD SPTP XHOME CONT Vel=50 % PDAT1 Tool[1] Base[0]  ;%{PE}
+   ;FOLD Parameters ;%{h}
+   ;Params IlfProvider=kukaroboter.basistech.inlineforms.movement.spline; Kuka.IsGlobalPoint=False; Kuka.PointName=XHOME; Kuka.BlendingEnabled=True; Kuka.MoveDataPtpName=PDAT1; Kuka.VelocityPtp=50; Kuka.VelocityFieldEnabled=True; Kuka.ColDetectFieldEnabled=True; Kuka.CurrentCDSetIndex=0; Kuka.MovementParameterFieldEnabled=True; IlfCommand=SPTP
+   ;ENDFOLD
+   SPTP XHOME WITH $VEL_AXIS[1] = SVEL_JOINT(100.0), $TOOL = STOOL2(FXHOME), $BASE = SBASE(FXHOME.BASE_NO), $IPO_MODE = SIPO_MODE(FXHOME.IPO_FRAME), $LOAD = SLOAD(FXHOME.TOOL_NO), $ACC_AXIS[1] = SACC_JOINT(PPDAT1), $APO = SAPO_PTP(PPDAT1), $GEAR_JERK[1] = SGEAR_JERK(PPDAT1), $COLLMON_TOL_PRO[1] = USE_CM_PRO_VALUES(0)
+   ;ENDFOLD
+      WAIT FOR STARTVAR==TRUE
+      ;evtl Interrupt, der Programm pausiert und mit STOPMOV var getriggert wird, implementieren
+      
+      WHILE ENDPROG == FALSE
+         IF(ACT_MOVE == 1) THEN  
+             IF(($IN[7] AND (GRP1==2)) OR (NOT $IN[7] AND (GRP1==1))) THEN
+                 GRPg_SetStateAndCheck(1,GRP1,0.5,0)
+             ENDIF
+             ;GRPg_SetState(1,GRP1)
+             ;WAIT SEC 0.5
+            ACT_MOVE = 2  
+            FINISH1=FALSE
+            FINISH2 = TRUE       
+            SWITCH MOVEMODE1
+               CASE 1
+   ;FOLD SPTP MAT_POS1 Vel=50 % PDAT1 Tool[1] Base[0]  ;%{PE}
+   ;FOLD Parameters ;%{h}
+   ;Params IlfProvider=kukaroboter.basistech.inlineforms.movement.spline; Kuka.IsGlobalPoint=False; Kuka.PointName=MAT_POS1; Kuka.BlendingEnabled=False; Kuka.MoveDataPtpName=PDAT1; Kuka.VelocityPtp=50; Kuka.VelocityFieldEnabled=True; Kuka.ColDetectFieldEnabled=True; Kuka.CurrentCDSetIndex=0; Kuka.MovementParameterFieldEnabled=True; IlfCommand=SPTP
+   ;ENDFOLD
+   SPTP MAT_POS1 WITH $VEL_AXIS[1] = SVEL_JOINT(VEL1), $TOOL = STOOL2(FMAT_POS1), $BASE = SBASE(FMAT_POS1.BASE_NO), $IPO_MODE = SIPO_MODE(FMAT_POS1.IPO_FRAME), $LOAD = SLOAD(FMAT_POS1.TOOL_NO), $ACC_AXIS[1] = SACC_JOINT(PPDAT1), $APO = SAPO_PTP(PPDAT1), $GEAR_JERK[1] = SGEAR_JERK(PPDAT1), $COLLMON_TOL_PRO[1] = USE_CM_PRO_VALUES(1)
+   ;ENDFOLD
+               CASE 2
+   ;FOLD SLIN MAT_POS2 Vel=1 m/s CPDAT1 Tool[1] Base[0]  ;%{PE}
+   ;FOLD Parameters ;%{h}
+   ;Params IlfProvider=kukaroboter.basistech.inlineforms.movement.spline; Kuka.IsGlobalPoint=False; Kuka.PointName=MAT_POS2; Kuka.BlendingEnabled=False; Kuka.MoveDataName=CPDAT1; Kuka.VelocityPath=1; Kuka.VelocityFieldEnabled=True; Kuka.ColDetectFieldEnabled=True; Kuka.CurrentCDSetIndex=0; Kuka.MovementParameterFieldEnabled=True; IlfCommand=SLIN
+   ;ENDFOLD
+   SLIN MAT_POS1 WITH $VEL = SVEL_CP(1.0*VEL1/100.0, , LCPDAT1), $TOOL = STOOL2(FMAT_POS2), $BASE = SBASE(FMAT_POS2.BASE_NO), $IPO_MODE = SIPO_MODE(FMAT_POS2.IPO_FRAME), $LOAD = SLOAD(FMAT_POS2.TOOL_NO), $ACC = SACC_CP(LCPDAT1), $ORI_TYPE = SORI_TYP(LCPDAT1), $APO = SAPO(LCPDAT1), $JERK = SJERK(LCPDAT1), $COLLMON_TOL_PRO[1] = USE_CM_PRO_VALUES(1)
+   ;ENDFOLD
+               CASE 3
+;FOLD SCIRC MAT_POS1 HP_POS1 Vel=1 m/s CPDAT3 Tool[1] Base[0]  ;%{PE}
+;FOLD Parameters ;%{h}
+;Params IlfProvider=kukaroboter.basistech.inlineforms.movement.spline; Kuka.IsGlobalPoint=False; Kuka.PointName=HP_POS1; Kuka.HelpPointName=MAT_POS1; Kuka.BlendingEnabled=False; Kuka.MoveDataName=CPDAT3; Kuka.VelocityPath=1; Kuka.VelocityFieldEnabled=True; Kuka.ColDetectFieldEnabled=True; Kuka.CurrentCDSetIndex=0; Kuka.MovementParameterFieldEnabled=True; IlfCommand=SCIRC
+;ENDFOLD
+SCIRC HP_POS1, MAT_POS1 WITH $VEL = SVEL_CP(1.0*VEL1/100.0, , LCPDAT3), $TOOL = STOOL2(FHP_POS1), $BASE = SBASE(FHP_POS1.BASE_NO), $IPO_MODE = SIPO_MODE(FHP_POS1.IPO_FRAME), $LOAD = SLOAD(FHP_POS1.TOOL_NO), $ACC = SACC_CP(LCPDAT3), $ORI_TYPE = SORI_TYP(LCPDAT3), $CIRC_TYPE = SCIRC_TYP(LCPDAT3), $APO = SAPO(LCPDAT3), $CIRC_MODE = SCIRC_M(LCPDAT3), $JERK = SJERK(LCPDAT3), $COLLMON_TOL_PRO[1] = USE_CM_PRO_VALUES(1)
+;ENDFOLD
+               CASE 4
+                WAIT SEC MAT_POS1.S
+            ENDSWITCH
+            
+         ELSE
+             IF(($IN[7] AND (GRP2==2)) OR (NOT $IN[7] AND (GRP2==1)) ) THEN
+                 GRPg_SetStateAndCheck(1,GRP2,0.5,0)
+             ENDIF
+            ; GRPg_SetState(1,GRP2)
+            ; WAIT SEC 0.5
+            ACT_MOVE = 1
+            FINISH2=FALSE
+            FINISH1=TRUE
+            SWITCH MOVEMODE2
+               CASE 1
+   ;FOLD SPTP MAT_POS3 Vel=50 % PDAT2 Tool[1] Base[0]  ;%{PE}
+   ;FOLD Parameters ;%{h}
+   ;Params IlfProvider=kukaroboter.basistech.inlineforms.movement.spline; Kuka.IsGlobalPoint=False; Kuka.PointName=MAT_POS3; Kuka.BlendingEnabled=False; Kuka.MoveDataPtpName=PDAT2; Kuka.VelocityPtp=50; Kuka.VelocityFieldEnabled=True; Kuka.ColDetectFieldEnabled=True; Kuka.CurrentCDSetIndex=0; Kuka.MovementParameterFieldEnabled=True; IlfCommand=SPTP
+   ;ENDFOLD
+   SPTP MAT_POS2 WITH $VEL_AXIS[1] = SVEL_JOINT(VEL2), $TOOL = STOOL2(FMAT_POS3), $BASE = SBASE(FMAT_POS3.BASE_NO), $IPO_MODE = SIPO_MODE(FMAT_POS3.IPO_FRAME), $LOAD = SLOAD(FMAT_POS3.TOOL_NO), $ACC_AXIS[1] = SACC_JOINT(PPDAT2), $APO = SAPO_PTP(PPDAT2), $GEAR_JERK[1] = SGEAR_JERK(PPDAT2), $COLLMON_TOL_PRO[1] = USE_CM_PRO_VALUES(1)
+   ;ENDFOLD
+               CASE 2
+   ;FOLD SLIN MAT_POS4 Vel=1 m/s CPDAT2 Tool[1] Base[0]  ;%{PE}
+   ;FOLD Parameters ;%{h}
+   ;Params IlfProvider=kukaroboter.basistech.inlineforms.movement.spline; Kuka.IsGlobalPoint=False; Kuka.PointName=MAT_POS4; Kuka.BlendingEnabled=False; Kuka.MoveDataName=CPDAT2; Kuka.VelocityPath=1; Kuka.VelocityFieldEnabled=True; Kuka.ColDetectFieldEnabled=True; Kuka.CurrentCDSetIndex=0; Kuka.MovementParameterFieldEnabled=True; IlfCommand=SLIN
+   ;ENDFOLD
+ SLIN MAT_POS2 WITH $VEL = SVEL_CP(1.0*VEL2/100.0, , LCPDAT2), $TOOL = STOOL2(FMAT_POS4), $BASE = SBASE(FMAT_POS4.BASE_NO), $IPO_MODE = SIPO_MODE(FMAT_POS4.IPO_FRAME), $LOAD = SLOAD(FMAT_POS4.TOOL_NO), $ACC = SACC_CP(LCPDAT2), $ORI_TYPE = SORI_TYP(LCPDAT2), $APO = SAPO(LCPDAT2), $JERK = SJERK(LCPDAT2), $COLLMON_TOL_PRO[1] = USE_CM_PRO_VALUES(1)
+   ;ENDFOLD
+               CASE 3
+;FOLD SCIRC MAT_POS6 HP_POS2 Vel=1 m/s CPDAT4 Tool[1] Base[0]  ;%{PE}
+;FOLD Parameters ;%{h}
+;Params IlfProvider=kukaroboter.basistech.inlineforms.movement.spline; Kuka.IsGlobalPoint=False; Kuka.PointName=HP_POS2; Kuka.HelpPointName=MAT_POS6; Kuka.BlendingEnabled=False; Kuka.MoveDataName=CPDAT4; Kuka.VelocityPath=1; Kuka.VelocityFieldEnabled=True; Kuka.ColDetectFieldEnabled=True; Kuka.CurrentCDSetIndex=0; Kuka.MovementParameterFieldEnabled=True; IlfCommand=SCIRC
+;ENDFOLD
+SCIRC HP_POS2, MAT_POS2 WITH $VEL = SVEL_CP(1.0*VEL2*100.0, , LCPDAT4), $TOOL = STOOL2(FHP_POS2), $BASE = SBASE(FHP_POS2.BASE_NO), $IPO_MODE = SIPO_MODE(FHP_POS2.IPO_FRAME), $LOAD = SLOAD(FHP_POS2.TOOL_NO), $ACC = SACC_CP(LCPDAT4), $ORI_TYPE = SORI_TYP(LCPDAT4), $CIRC_TYPE = SCIRC_TYP(LCPDAT4), $APO = SAPO(LCPDAT4), $CIRC_MODE = SCIRC_M(LCPDAT4), $JERK = SJERK(LCPDAT4), $COLLMON_TOL_PRO[1] = USE_CM_PRO_VALUES(1)
+;ENDFOLD
+              CASE 4
+              WAIT SEC MAT_POS2.S
+            ENDSWITCH  
+         ENDIF
+      ENDWHILE
+      PROGVAR = 2   ;wenn skriptmode einmal durchlaufen, dann Wechseln zu teachmode (default)
+      ACTFLAG = FALSE
+    
+   CASE 2
+      ENDPROG = FALSE
+      $ADVANCE = 2
+      $OV_PRO = 30
+      $ORI_TYPE = #JOINT
+      WHILE ENDPROG == FALSE
+          CONTINUE
+          WAIT FOR ACTFLAG == TRUE
+          CONTINUE
+          SWITCH KEYFLAG
+             
+              CASE 1
+                  PTP_REL {X -2.0} C_DIS
+              CASE 2
+                  PTP_REL {X 2.0} C_DIS
+              CASE 3
+                  PTP_REL {Y -2.0} C_DIS
+              CASE 4
+                  PTP_REL {Y 2.0} C_DIS
+              CASE 5
+                  PTP_REL {Z -2.0} C_DIS
+                 ;POS_REL = {X 0.0,Y 0.0,Z -2.0,A 0.0,B 0.0,C 0.0,S 0,T 0}
+                ; POS_TARGET.Z = POS_TARGET.Z - 2.0
+              CASE 6
+                  PTP_REL {Z 2.0} C_DIS
+              CASE 7
+                  PTP_REL {A -0.5} C_DIS
+              CASE 8
+                  PTP_REL {A 0.5} C_DIS
+              CASE 9
+                  PTP_REL {B -0.5} C_DIS
+              CASE 10
+                  PTP_REL {B 0.5} C_DIS
+              CASE 11
+                  PTP_REL {C -0.5} C_DIS
+              CASE 12
+                  PTP_REL {C 0.5} C_DIS
+          ENDSWITCH
+          IF GRPFLAG == 2 THEN
+               GRPg_SetStateAndCheck(1,2,0.5,0)
+                GRPFLAG = 0
+          ENDIF
+          IF GRPFLAG == 1 THEN
+              GRPg_SetStateAndCheck(1,1,0.5,0)
+              GRPFLAG = 0
+          ENDIF
+      ENDWHILE     
+   CASE 3
+       ENDPROG = FALSE
+       ACTFLAG = FALSE
+       GRPg_SetStateAndCheck(1,1,0.5,0)
+       VEL1=40
+       GRP1 = 1
+       $OV_PRO = 30
+       WHILE ENDPROG == FALSE
+              ;FOLD SPTP MAT_POS1 Vel=50 % PDAT1 Tool[1] Base[0]  ;%{PE}
+   ;FOLD Parameters ;%{h}
+   ;Params IlfProvider=kukaroboter.basistech.inlineforms.movement.spline; Kuka.IsGlobalPoint=False; Kuka.PointName=MAT_POS1; Kuka.BlendingEnabled=False; Kuka.MoveDataPtpName=PDAT1; Kuka.VelocityPtp=50; Kuka.VelocityFieldEnabled=True; Kuka.ColDetectFieldEnabled=True; Kuka.CurrentCDSetIndex=0; Kuka.MovementParameterFieldEnabled=True; IlfCommand=SPTP
+   ;ENDFOLD
+   SLIN MAT_POS1 WITH $VEL_AXIS[1] = SVEL_JOINT(VEL1), $TOOL = STOOL2(FMAT_POS1), $BASE = SBASE(FMAT_POS1.BASE_NO), $IPO_MODE = SIPO_MODE(FMAT_POS1.IPO_FRAME), $LOAD = SLOAD(FMAT_POS1.TOOL_NO), $ACC_AXIS[1] = SACC_JOINT(PPDAT1), $APO = SAPO_PTP(PPDAT1), $GEAR_JERK[1] = SGEAR_JERK(PPDAT1), $COLLMON_TOL_PRO[1] = USE_CM_PRO_VALUES(1) C_Spl
+   ;ENDFOLD
+          IF GRPFLAG == 1 THEN
+               IF GRP1 == 1 THEN
+                   GRPg_SetStateAndCheck(1,2,0.5,0)
+                   GRP1 = 2
+               ELSE
+                   GRPg_SetStateAndCheck(1,1,0.5,0)
+                   GRP1 = 1
+               ENDIF
+             GRPFLAG = 0
+          ENDIF
+       ENDWHILE
+       PROGVAR = 2
+   
+   ENDSWITCH
+ENDLOOP
+
+
+END

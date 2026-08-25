@@ -1,0 +1,263 @@
+%% viereck_fahren.m
+%  Faehrt die geteachten vier Ecken mit dem KUKA KR 3 ab und stellt die
+%  tatsaechlich gefahrene Bahn dar.
+%
+%  Voraussetzungen:
+%    - KUKAVARPROXY laeuft auf der Steuerung
+%    - KRL-Programm "driver" ist am SmartPAD angewaehlt und gestartet
+%    - MATLAB steht im Verzeichnis, das den Ordner kukaTCPClient enthaelt
+%    - Betriebsart T1, Hand am Zustimmschalter, Override niedrig
+
+clear posmsg modmsg velmsg grpmsg hpmsg optmsg IstPos times
+
+%% ------------------------------------------------------------------
+%  Konfiguration
+% -------------------------------------------------------------------
+
+MODUS = 'test';        % 'test' = PTP  |  'mess' = LIN
+V     = 15;            % Geschwindigkeit in Prozent
+
+% Bei PTP ist V ein Prozentsatz der Achsgeschwindigkeit.
+% Bei LIN ist V ein Prozentsatz von 1 m/s Bahngeschwindigkeit,
+% d.h. V = 15 entspricht 150 mm/s. Fuer den ersten LIN-Lauf V = 5.
+
+% Korrekturen an den Originaldaten - standardmaessig AUS.
+T_KORREKTUR             = false;   % Punkt 5 exakt wie Punkt 1 setzen
+ORIENTIERUNG_ANGLEICHEN = false;   % A/B/C aller Punkte auf Punkt 1
+
+%% ------------------------------------------------------------------
+%  Wegpunkte im Originalzustand  [X Y Z A B C S T]
+% -------------------------------------------------------------------
+
+wp = [426.9750,  54.0223, 574.0360, 90.0000, 89.0000, 90.0000, 2, 43;
+      414.1530, 117.0620, 574.0360, 98.5722, 89.0000, 90.0000, 2, 43;
+      381.8480, 112.1920, 624.2520, 16.3365, 82.5775,  7.7000, 2, 43;
+      393.6040,  58.9201, 624.2520,  8.4766, 82.5775,  7.7000, 2, 43;
+      426.9750,  54.0223, 574.0360, 90.0000, 89.0000, 90.0000, 2, 34];
+
+wp_original = wp;
+
+
+if T_KORREKTUR
+    wp(end,:) = wp(1,:);
+end
+if ORIENTIERUNG_ANGLEICHEN
+    wp(:,4:6) = repmat(wp(1,4:6), size(wp,1), 1);
+end
+
+n = size(wp,1);
+
+%% ------------------------------------------------------------------
+%  Parameterarrays  (Zeilenvektoren, Laenge n)
+% -------------------------------------------------------------------
+
+switch lower(MODUS)
+    case 'test', movemode = ones(1,n);        % 1 = PTP
+    case 'mess', movemode = 2*ones(1,n);      % 2 = LIN
+    otherwise,   error('MODUS muss ''test'' oder ''mess'' sein.');
+end
+
+vel  = V * ones(1,n);
+grip = ones(1,n);          % 1 = offen, 2 = geschlossen
+hp   = zeros(n,8);         % keine Hilfspunkte, CIRC wird nicht benutzt
+
+%% ------------------------------------------------------------------
+%  Pruefschritte VOR dem Erzeugen der Frames
+% -------------------------------------------------------------------
+%  Die Laengenpruefung in generate_posmsg vergleicht verkettete Wahrheitswerte
+%  statt Groessen und laesst unpassende Laengen durch - deshalb hier selbst.
+
+fprintf('\n=== Eingangspruefung ===\n');
+
+assert(size(wp,2) == 8,      'wp braucht 8 Spalten, hat %d.', size(wp,2));
+assert(numel(movemode) == n, 'movemode: %d statt %d Eintraege.', numel(movemode), n);
+assert(numel(vel)      == n, 'vel: %d statt %d Eintraege.',      numel(vel), n);
+assert(numel(grip)     == n, 'grip: %d statt %d Eintraege.',     numel(grip), n);
+assert(size(hp,1)      == n, 'hp: %d statt %d Zeilen.',          size(hp,1), n);
+assert(~any(isnan(wp(:))),   'NaN in den Wegpunkten.');
+assert(~any(isinf(wp(:))),   'Inf in den Wegpunkten.');
+assert(isrow(movemode) && isrow(vel) && isrow(grip), ...
+       'movemode, vel und grip muessen Zeilenvektoren sein.');
+
+fprintf('Laengen ok: %d Wegpunkte, Modus %s, v = %d %%\n', n, upper(MODUS), V);
+
+% Achskonfiguration
+if numel(unique(wp(:,7))) > 1
+    warning('S ist nicht ueber alle Punkte identisch: %s', mat2str(wp(:,7)'));
+end
+if numel(unique(wp(:,8))) > 1
+    warning(['T ist nicht ueber alle Punkte identisch: %s -> der Roboter ', ...
+             'wechselt unterwegs die Handgelenkstellung.'], mat2str(wp(:,8)'));
+end
+
+% Orientierungssprung
+dABC = max(abs(diff(wp(:,4:6))), [], 1);
+fprintf('Groesste Orientierungsaenderung je Segment: A %.1f  B %.1f  C %.1f Grad\n', dABC);
+if any(dABC > 30)
+    warning(['Orientierung springt um mehr als 30 Grad. Bei LIN wird sie ueber ', ...
+             'die Strecke interpoliert -> ruckartige Handgelenkbewegung moeglich.']);
+end
+
+% Naehe zur Euler-Entartung (B nahe +-90 Grad)
+if any(abs(abs(wp(:,5)) - 90) < 10)
+    warning('B liegt nahe 90 Grad - A und C sind dort nicht mehr unabhaengig.');
+end
+
+% Kantenlaengen
+kanten = sqrt(sum(diff(wp(:,1:3)).^2, 2));
+fprintf('Kantenlaengen [mm]: %s\n', num2str(kanten', '%.1f  '));
+
+% Bahn geschlossen?
+lueck = norm(wp(end,1:3) - wp(1,1:3));
+if lueck > 0.1
+    warning('Bahn ist nicht geschlossen: %.2f mm zwischen letztem und erstem Punkt.', lueck);
+end
+
+disp('Wegpunkte:'); disp(wp);
+
+%% ------------------------------------------------------------------
+%  Alte Verbindung schliessen
+% -------------------------------------------------------------------
+%  Reste aus Teachskript.m koennen den Port belegen.
+
+if exist('tcpObj','var') && ~isempty(tcpObj)
+    try, tcpObj.CloseKuka(); catch, end
+    clear tcpObj
+end
+
+%% ------------------------------------------------------------------
+%  Frames erzeugen
+% -------------------------------------------------------------------
+%  Die Funktion heisst generate_posmsg; der Kommentarkopf verweist noch auf
+%  den alten Namen generate_posmsg.
+
+[posmsg, modmsg, velmsg, grpmsg, hpmsg, optmsg] = ...
+    generate_posmsg(wp, movemode, vel, grip, hp);
+
+%% ------------------------------------------------------------------
+%  Pruefschritte NACH dem Erzeugen der Frames
+% -------------------------------------------------------------------
+
+fprintf('\n=== Framepruefung ===\n');
+
+% generate_posmsg haengt den letzten Wegpunkt ein zweites Mal an, in den jeweils
+% anderen Puffer -> n+1 Frames. Passt zu movecnt = size(modmsg,1)-1
+% in Bahnskript.m.
+assert(numel(posmsg)  == n+1, 'posmsg: %d statt %d Zellen.', numel(posmsg), n+1);
+assert(numel(velmsg)  == n+1, 'velmsg: %d statt %d Zellen.', numel(velmsg), n+1);
+assert(numel(hpmsg)   == n+1, 'hpmsg: %d statt %d Zellen.',  numel(hpmsg), n+1);
+assert(numel(optmsg)  == n+1, 'optmsg: %d statt %d Zellen.', numel(optmsg), n+1);
+assert(size(modmsg,1) == n+1, 'modmsg: %d statt %d Zeilen.', size(modmsg,1), n+1);
+assert(size(modmsg,2) == 19,  'modmsg: %d statt 19 Spalten.', size(modmsg,2));
+assert(size(grpmsg,2) == 14,  'grpmsg: %d statt 14 Spalten.', size(grpmsg,2));
+
+fprintf('Framegroessen ok (%d Positionen, modmsg %dx%d)\n', ...
+        numel(posmsg), size(modmsg,1), size(modmsg,2));
+
+% Kommt die gewaehlte Bewegungsart wirklich im Frame an?
+% Das letzte Byte von modmsg ist der ASCII-Code der Bewegungsart.
+mode_im_frame = char(modmsg(1,end));
+fprintf('Bewegungsart im Frame: %s (erwartet %d)\n', mode_im_frame, movemode(1));
+assert(str2double(mode_im_frame) == movemode(1), ...
+       ['Bewegungsart im Frame ist %s, erwartet %d. Vermutlich eine alte ', ...
+        'Variable im Workspace.'], mode_im_frame, movemode(1));
+
+% Sind die Koordinaten korrekt uebernommen?
+% Achtung: generate_posmsg rundet mit %.1f auf eine Nachkommastelle.
+fprintf('Erster POS-String:  %s\n', char(posmsg{1}));
+fprintf('Letzter POS-String: %s\n', char(posmsg{end}));
+
+% Zielpuffer alternieren?
+fprintf('Zielvariablen: ');
+for k = 1:numel(posmsg)
+    s = char(posmsg{k});
+    fprintf('%s ', s(strfind(s,'MAT_POS')+(0:7)));
+end
+fprintf('\n');
+
+%% ------------------------------------------------------------------
+%  Bahn abfahren
+% -------------------------------------------------------------------
+
+fprintf('\n');
+input('T1 aktiv, Override niedrig, Zustimmschalter gedrueckt? [Enter] ');
+
+IstPos = Bahnskript(posmsg, modmsg, velmsg, grpmsg, hpmsg, optmsg);
+
+%% ------------------------------------------------------------------
+%  Ist-Daten aufbereiten
+% -------------------------------------------------------------------
+%  Bahnskript.m gibt IstPos praeallokiert mit 10000 Zeilen zurueck und
+%  schneidet nur die letzte ab - der Rest sind Nullzeilen. Die muessen
+%  raus, sonst springt der Plot in den Ursprung.
+
+gueltig = any(IstPos ~= 0, 2);
+IstPos  = IstPos(gueltig, :);
+fprintf('\n%d gueltige Ist-Positionen aufgezeichnet.\n', size(IstPos,1));
+
+%% ------------------------------------------------------------------
+%  Plot: tatsaechlich gefahrene Bahn
+% -------------------------------------------------------------------
+
+figure('Name','Soll- und Ist-Bahn','Color','w');
+
+subplot(1,2,1);
+plot3(IstPos(:,1), IstPos(:,2), IstPos(:,3), '-', 'LineWidth', 1.2, ...
+      'Color', [0.35 0.35 0.85]); hold on;
+plot3(wp(:,1), wp(:,2), wp(:,3), 'o--', 'LineWidth', 1.0, ...
+      'Color', [0.85 0.35 0.20], 'MarkerFaceColor', [0.85 0.35 0.20], ...
+      'MarkerSize', 6);
+for k = 1:n
+    text(wp(k,1), wp(k,2), wp(k,3), sprintf('  %d', k), 'FontSize', 10);
+end
+plot3(IstPos(1,1), IstPos(1,2), IstPos(1,3), 'ks', 'MarkerSize', 9, ...
+      'MarkerFaceColor', 'g');
+grid on; axis equal; view(45, 25);
+xlabel('X [mm]'); ylabel('Y [mm]'); zlabel('Z [mm]');
+legend('Ist-Bahn', 'Soll-Wegpunkte', 'Start', 'Location', 'best');
+title(sprintf('Gefahrene Bahn (%s, v = %d %%)', upper(MODUS), V));
+
+subplot(1,2,2);
+plot(IstPos(:,1), 'LineWidth', 1.1); hold on;
+plot(IstPos(:,2), 'LineWidth', 1.1);
+plot(IstPos(:,3), 'LineWidth', 1.1);
+grid on;
+xlabel('Polling-Iteration'); ylabel('Position [mm]');
+legend('X','Y','Z','Location','best');
+title('Koordinatenverlauf');
+
+% Abweichung: wie nah kam der Roboter an jeden Sollpunkt?
+fprintf('\nKleinster Abstand der Ist-Bahn zu jedem Sollpunkt:\n');
+for k = 1:n
+    d = sqrt(sum((IstPos(:,1:3) - wp(k,1:3)).^2, 2));
+    fprintf('  Punkt %d: %6.2f mm\n', k, min(d));
+end
+
+%% ------------------------------------------------------------------
+%  Ergebnis sichern
+% -------------------------------------------------------------------
+
+meta = struct( ...
+    'modus',    MODUS, ...
+    'vel',      V, ...
+    'movemode', movemode, ...
+    't_korrektur',  T_KORREKTUR, ...
+    'ori_angleich', ORIENTIERUNG_ANGLEICHEN, ...
+    'ov_pro',   30, ...          % driver.src setzt $OV_PRO intern auf 30
+    'tool',     [], ...          % aus driver.dat eintragen
+    'base',     [], ...          % aus driver.dat eintragen
+    'datum',    datestr(now), ...
+    'matlab',   version);
+
+
+
+%% ------------------------------------------------------------------
+%  Notstopp
+% -------------------------------------------------------------------
+%  Falls der Ablauf haengt: neue Verbindung aufmachen und ENDPROG setzen.
+%  Beendet die WHILE-Schleife in driver.src nach der laufenden Bewegung.
+%
+%  tcp = kukaTCPClient.KukaClientClass('192.168.41.64', 7000);
+%  tcp.ConnectToKuka();
+%  tcp.SendToKuka([0,20,0,3+7+6,1,0,7,uint8('ENDPROG'),0,4,uint8('TRUE')]);
+%  tcp.CloseKuka();

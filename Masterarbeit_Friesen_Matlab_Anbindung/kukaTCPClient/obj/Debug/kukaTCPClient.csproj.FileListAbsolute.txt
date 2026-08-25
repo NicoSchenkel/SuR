@@ -1,0 +1,6 @@
+C:\Users\kukaZelle\Dropbox\MA-Arbeit\Abgabe_Dateien\kukaTCPClient\bin\Debug\kukaTCPClient.dll
+C:\Users\kukaZelle\Dropbox\MA-Arbeit\Abgabe_Dateien\kukaTCPClient\bin\Debug\kukaTCPClient.pdb
+C:\Users\kukaZelle\Dropbox\MA-Arbeit\Abgabe_Dateien\kukaTCPClient\obj\Debug\kukaTCPClient.csprojAssemblyReference.cache
+C:\Users\kukaZelle\Dropbox\MA-Arbeit\Abgabe_Dateien\kukaTCPClient\obj\Debug\kukaTCPClient.csproj.CoreCompileInputs.cache
+C:\Users\kukaZelle\Dropbox\MA-Arbeit\Abgabe_Dateien\kukaTCPClient\obj\Debug\kukaTCPClient.dll
+C:\Users\kukaZelle\Dropbox\MA-Arbeit\Abgabe_Dateien\kukaTCPClient\obj\Debug\kukaTCPClient.pdb
