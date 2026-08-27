@@ -1,0 +1,41 @@
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.lol
+*.fls
+*.fdb_latexmk
+
+# SyncTeX files
+*.synctex
+*.synctex.gz
+*.synctex(busy)
+
+# Bibliography auxiliary files (Biber / BibTeX)
+*.bbl
+*.bcf
+*.blg
+*-blx.bib
+*.run.xml
+
+# Glossary / Index
+*.acn
+*.acr
+*.alg
+*.glg
+*.glo
+*.gls
+*.idx
+*.ilg
+*.ind
+*.ist
+
+# PDF output (generated, not source)
+Main-Datei.pdf
+
+# OS
+.DS_Store
+Thumbs.db
