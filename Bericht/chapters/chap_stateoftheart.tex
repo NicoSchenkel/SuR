@@ -1,0 +1,214 @@
+\section{Stand der Technik}
+\label{sec:sdt}
+
+\subsection{Die Trainingszelle KUKA ready2\_educate\_pro}
+\label{sec:zelle}
+
+Die Trainingszelle besteht aus den in Abbildung~\ref{fig:zelle_architektur}
+dargestellten Komponenten (vgl.\ Hübel~\cite{huebel2022}, Kap.~3.1):
+
+\begin{itemize}
+    \item \textbf{Roboter KR~3 AGILUS R540:} 6-Achs-Knickarmroboter mit
+    \SI{3}{\kilogram} Traglast und \SI{541}{\milli\meter} Reichweite.
+    \item \textbf{Steuerung KR~C4 compact:} steuert den Roboter, führt
+    \ac{krl}-Programme aus und stellt die Schnittstellen zu SmartPAD,
+    digitaler \ac{ea}-Karte und externen Systemen bereit.
+    \item \textbf{Digitale \ac{ea}-Karte:} stellt digitale Ein- und Ausgänge
+    für externe Peripherie (z.\,B. Greifer, Sensorik) bereit.
+    \item \textbf{SmartPAD~2:} mobiles Handbediengerät zur manuellen
+    Steuerung, Programmierung und Konfiguration der Steuerung.
+    \item \textbf{WorkVisual:} PC-seitige Engineering-Software zur
+    Projektierung, Programmierung und Diagnose der Zelle.
+\end{itemize}
+
+%% TODO: Bild/Foto der realen Zelle NICHT hier einbinden (siehe
+%% Projekt-Konvention: keine von Claude generierten Bilder, keine
+%% eingescannten Fotos ohne Rücksprache) -- stattdessen das nachfolgende
+%% TikZ-Schema. Bei Bedarf gerne ein echtes Foto der Zelle ergänzen.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        box/.style={draw, rounded corners, minimum width=3.1cm, minimum height=1.1cm, align=center, font=\footnotesize},
+        conn/.style={-{Latex[length=2mm]}, thick},
+        node distance=1.1cm and 1.6cm
+    ]
+        \node[box] (krc4) {KR~C4 compact\\(Steuerung)};
+        \node[box, above=of krc4] (robot) {KR~3 AGILUS R540\\(Roboter)};
+        \node[box, left=of krc4] (smartpad) {SmartPAD~2};
+        \node[box, right=of krc4] (io) {Digitale \ac{ea}-Karte};
+        \node[box, below left=of krc4] (workvisual) {PC: WorkVisual\\(Engineering)};
+        \node[box, below right=of krc4] (extpc) {PC: MATLAB / QUARC\\(externe Anbindung)};
+
+        \draw[conn] (krc4) -- (robot);
+        \draw[conn] (krc4) -- (smartpad);
+        \draw[conn] (krc4) -- (io);
+        \draw[conn] (krc4) -- (workvisual) node[midway, below, font=\tiny] {KLI (Ethernet)};
+        \draw[conn] (krc4) -- (extpc) node[midway, below, font=\tiny] {\ac{kvp} / QUARC};
+    \end{tikzpicture}
+    \caption{Schematische Architektur der KUKA ready2\_educate\_pro-Zelle mit
+    externer Anbindung (eigene Darstellung, Komponenten nach
+    Hübel~\cite{huebel2022}, Kap.~3.1).}
+    \label{fig:zelle_architektur}
+\end{figure}
+
+\subsection{Bewegungsprogrammierung mit KRL}
+\label{sec:krl}
+
+Die Steuerung wird nativ über \ac{krl} programmiert, eine an Pascal
+angelehnte, KUKA-eigene Sprache. Für die Bahnplanung stehen u.\,a. folgende
+Bewegungsarten zur Verfügung (vgl.\ Friesen~\cite{friesen2021}, Kap.~2.6):
+
+\begin{itemize}
+    \item \ac{ptp}: schnellste Bewegung zwischen zwei Punkten, Bahnform im
+    kartesischen Raum nicht definiert.
+    \item \ac{lin}: geradlinige Bewegung des \ac{tcp} zwischen Start- und
+    Zielpunkt.
+    \item \ac{circ}: kreisförmige Bewegung des \ac{tcp} über einen
+    Hilfspunkt zu einem Zielpunkt.
+    \item \ac{spl}: Spline-Bewegung für weiche, mehrsegmentige Bahnen.
+\end{itemize}
+
+Jeder Zielpunkt wird zusätzlich über Status- und Turn-Parameter (S/T)
+eindeutig einer von mehreren möglichen Achskonfigurationen zugeordnet, mit
+denen derselbe kartesische Punkt erreicht werden kann. Über die
+\texttt{CONT}-Option lässt sich an Zielpunkten ein Überschleifen (Path
+Blending) aktivieren, wodurch die Bahn nicht exakt bis in den programmierten
+Punkt abgefahren, sondern bereits vorher auf die nächste Bewegung
+übergeblendet wird; dies erklärt die in der Baseline-Messung beobachtete
+geringe Restdistanz (\texttt{dmin}) an den Zwischenpunkten der Quadratbahn
+(siehe Abschnitt~\ref{sec:baseline}).
+
+\subsection{Anbindungsmöglichkeiten an externe Steuerungssysteme}
+\label{sec:anbindung}
+
+Für die Anbindung externer Rechner an die KR~C4 stehen grundsätzlich
+feldbusbasierte und TCP/IP- bzw.\ UDP-basierte Lösungen zur Verfügung.
+
+\subsubsection{Feldbusvergleich}
+
+Friesen~\cite{friesen2021} (Kap.~3.1) vergleicht die gängigen
+Feldbussysteme hinsichtlich Zykluszeit, Paketgröße und Kosten eines
+Laboraufbaus (Tabelle~\ref{tab:feldbus}).
+
+\begin{table}[H]
+    \centering
+    \caption{Vergleich gängiger Feldbussysteme (Werte nach
+    Friesen~\cite{friesen2021}, Kap.~3.1, Tabelle~4).}
+    \label{tab:feldbus}
+    \begin{tabular}{lccc}
+        \toprule
+        Feldbus & min.\ Zykluszeit & Paketgröße & Kosten Laborsetup \\
+        \midrule
+        \ac{ethip} & ca.\ \SI{1}{\milli\second} & \SI{1500}{byte} & -- \\
+        PROFIBUS   & \SI{355}{\micro\second} & \SI{244}{byte} & \num{1115}~EUR \\
+        DeviceNet  & \SI{440}{\micro\second} & \SI{8}{byte} & \num{1330}~EUR \\
+        \ac{ethercat} & \SI{150}{\micro\second} & \SI{1486}{byte} & \num{130}~EUR \\
+        PROFINET   & \SI{250}{\micro\second} & \SI{1500}{byte} & \num{2950}~EUR \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\ac{ethercat} bietet demnach bei diesem Vergleich die kürzeste Zykluszeit bei
+gleichzeitig geringsten Kosten für den Laboraufbau; ein Grund, weshalb
+diese Technologie sowohl bei Hübel~\cite{huebel2022} für die
+Sensorintegration (siehe Abschnitt~\ref{sec:huebel}) als auch für QUARC-I/O
+in Thema~2 relevant ist.
+
+\subsubsection{TCP/IP- und UDP-basierte Anbindungen}
+
+Neben den Feldbuslösungen listet Friesen~\cite{friesen2021} (Kap.~3.2)
+weitere Anbindungsmöglichkeiten über \ac{tcpip} bzw.\ \ac{udp}:
+
+\begin{itemize}
+    \item \textbf{\ac{opcua}:} herstellerunabhängiger Kommunikationsstandard
+    für die Industrieautomation.
+    \item \textbf{\ac{rsi}:} von KUKA bereitgestellte Schnittstelle zur
+    zyklischen Korrektur laufender Bewegungen aus einem externen Prozess
+    heraus, primär für harte Echtzeitanwendungen ausgelegt.
+    \item \textbf{KUKA.Ethernet~KRL:} XML-basierte Anbindung zum
+    Datenaustausch zwischen \ac{krl}-Programm und externem System.
+    \item \textbf{\ac{kvp}:} von IMTS~S.r.L.\ entwickelte, seit 2019
+    open-source Lösung, die als TCP-Server auf der eingebetteten
+    Windows-Seite der KR~C4 läuft und lesenden sowie schreibenden Zugriff auf
+    \ac{krl}-Variablen erlaubt (siehe Abschnitt~\ref{sec:friesen}).
+\end{itemize}
+
+\subsection{Vorarbeit: MATLAB/KVP-Anbindung (Friesen, 2021)}
+\label{sec:friesen}
+
+Friesen~\cite{friesen2021} implementierte in seiner Masterarbeit eine
+Anbindung zwischen MATLAB und der KR~C4 über \ac{kvp}. Die KR~C4 besitzt
+neben der echtzeitfähigen VxWorks-Seite eine eingebettete Windows-Umgebung,
+auf der der \ac{kvp}-Serverdienst läuft; die Kommunikation zwischen beiden
+Seiten erfolgt intern über die von KUKA bereitgestellte
+CrossComm-Schnittstelle. \ac{kvp} nimmt über \ac{tcpip} byte-codierte
+Lese-/Schreibanfragen auf \ac{krl}-Variablen entgegen und beantwortet sie mit
+den entsprechenden Werten (Abbildung~\ref{fig:kvp_datenfluss}).
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        box/.style={draw, rounded corners, minimum width=3.4cm, minimum height=1.0cm, align=center, font=\footnotesize},
+        conn/.style={-{Latex[length=2mm]}, thick},
+        node distance=1.3cm
+    ]
+        \node[box] (matlab) {MATLAB-Skript\\(externer PC)};
+        \node[box, right=of matlab] (kvp) {\ac{kvp}-Server\\(Windows, KR~C4)};
+        \node[box, right=of kvp] (crosscomm) {CrossComm-\\Schnittstelle};
+        \node[box, right=of crosscomm] (vxworks) {VxWorks\\(\ac{krl}-Variablen)};
+
+        \draw[conn] (matlab.east) -- (kvp.west) node[midway, above, font=\tiny] {\ac{tcpip}};
+        \draw[conn] (kvp.east) -- (crosscomm.west);
+        \draw[conn] (crosscomm.east) -- (vxworks.west);
+        \draw[conn, dashed] (vxworks.south) -- ++(0,-0.6) -| (matlab.south) node[midway, below, font=\tiny] {Ist-Position (Rücklesen)};
+    \end{tikzpicture}
+    \caption{Datenfluss der MATLAB/KVP-Anbindung (eigene Darstellung nach
+    Friesen~\cite{friesen2021}, Kap.~3.2).}
+    \label{fig:kvp_datenfluss}
+\end{figure}
+
+In seiner Bewertung (Kap.~7.1, Tabelle~10) stuft Friesen die meisten
+Bewegungssteuerungs- und Rückgabewert-Anforderungen als erfüllt ein; das
+Kriterium \enquote{Echtzeitverhalten} wird jedoch nur als
+\enquote{teilweise erfüllt} bewertet, da die Windows-seitige Anbindung keine
+garantierten Zykluszeiten liefert. Dies deckt sich mit der im Rahmen dieses
+Projekts durchgeführten Baseline-Messung (Abschnitt~\ref{sec:baseline}): Bei
+einer vorgegebenen Mindestzykluszeit von \SI{12}{\milli\second} (dem
+Aktualisierungsintervall der \ac{krl}-Variablen, vgl.\
+Friesen~\cite{friesen2021}, Kap.~4.1/4.6) ergibt sich in der Praxis ein
+gepoolter Median von \SI{16.6}{\milli\second} mit Ausreißern bis über
+\SI{140}{\milli\second}; also eine deutliche, unvorhersehbare Streuung
+oberhalb der Vorgabe.
+
+\subsection{Vorarbeit: Sensorintegration (Hübel, 2021/22)}
+\label{sec:huebel}
+
+Hübel~\cite{huebel2022} realisierte in seiner Projektarbeit eine
+automatisierte Ausschankvorrichtung mit gravimetrischer bzw.\
+Füllstands-basierter Steuerung. Für die Füllstandsmessung vergleicht er
+(Kap.~3.2) grundsätzlich hydrostatische sowie elektromagnetische/
+Ultraschall-basierte Messprinzipien. Die Ansteuerung der eigentlichen
+Ausschankbewegung erfolgt über \ac{krl}-\ac{ptp}/\ac{lin}/\ac{circ}-Befehle
+sowie \texttt{PULSE}/\texttt{INTERRUPT}-Konstrukte zur ereignisgesteuerten
+Reaktion auf Sensorsignale (Kap.~4.6/4.7).
+
+Laut Aufgabenstellung (Thema2\_KUKA\_Zelle.pdf) wurde die externe Sensorik in
+diesem Vorprojekt über \ac{ethercat} an die Zelle angebunden. Die genaue
+Verdrahtung bzw.\ Konfiguration dieser \ac{ethercat}-Anbindung ist in
+Hübels Bericht an anderer Stelle (Kap.~4, Implementierung) beschrieben.
+% TODO: Diese Details wurden für den vorliegenden Stand-der-Technik-Abschnitt noch nicht ausgewertet und sollten bei Bedarf für die Kraftsensor-Integration in Thema~2 (Anforderung~2) gezielt nachgelesen werden, da sich die geplante QUARC-I/O-Anbindung des Kraftsensors technisch daran orientieren dürfte.
+
+\subsection{Ableitung für Thema 2}
+\label{sec:ableitung}
+
+Aus den beiden Vorarbeiten ergibt sich für Thema~2 folgender Handlungsbedarf:
+Die MATLAB/KVP-Anbindung (Abschnitt~\ref{sec:friesen}) liefert zwar
+funktional die benötigte Bahn- und Positionsdaten-Kommunikation, jedoch ohne
+deterministisches Zeitverhalten; die durchgeführte Baseline-Messung
+(Abschnitt~\ref{sec:baseline}) belegt dies quantitativ und dient als
+Vergleichsmaßstab für die spätere QUARC-Umsetzung. Die
+\ac{ethercat}-basierte Sensorintegration von Hübel (Abschnitt~\ref{sec:huebel})
+zeigt, dass die Zelle grundsätzlich für echtzeitfähige Feldbus-Anbindungen
+externer Sensorik vorbereitet ist, worauf die geplante
+QUARC-I/O-Anbindung des Kraftsensors (Anforderung~2) aufbauen kann.

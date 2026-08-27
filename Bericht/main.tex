@@ -1,0 +1,65 @@
+\documentclass{article}
+\sffamily
+%\usepackage{graphicx} % Required for inserting images
+
+%% load basic project information like project title, author...
+\input{project_frame_info.tex}
+
+%% load preamble (packages, fonts...)
+\input{preamble}
+
+%% load pdf settings (hyperref,...)
+\input{pdf_settings.tex}
+
+%\title{Laborbericht}
+%\author{Maike Lindorfer}
+%\date{December 2025}
+
+\begin{document}
+\sffamily
+
+%% load project coverpage
+\input{coverpage.tex}
+
+%% start pagenumbering
+\pagenumbering{Roman}
+
+%% Abstract
+%\include{chapters/chap_abstract}
+
+%% Inhaltsverzeichnis
+\tableofcontents
+\newpage
+%% Abkürzungen
+\input{acronyms}
+
+%% Abbildungsverzeichnis anzeigen, wenn Abbildungen in Dokument enthalten sind
+\iftotalfigures
+    \cleardoublepage
+    \phantomsection
+    \addcontentsline{toc}{section}{\listfigurename}
+    \listoffigures
+\fi
+
+%% Tabellenverzeichnis anzeigen, wenn Tabellen in Dokument enthalten sind
+%\lstlistoflistings
+
+%% start pagenumbering arabic for main part
+
+
+%\maketitle
+\include{chapters/chap_introduction}
+\include{chapters/chap_goals}
+\include{chapters/chap_stateoftheart}
+%\include{chapters/chap_config}
+\include{chapters/chap_implementation}
+\include{chapters/chap_conclusion}
+
+\pagenumbering{Roman}
+\setcounter{page}{4}
+
+%% include literature
+\addcontentsline{toc}{section}{Literaturverzeichnis}
+\bibliography{literature}
+
+\end{document}

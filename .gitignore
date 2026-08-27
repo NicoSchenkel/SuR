@@ -1,0 +1,33 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.synctex(busy)
+*.toc
+*.nav
+*.snm
+*.vrb
+*.xdv
+*.figlist
+*.makefile
+*.auxlock
+
+# per-chapter aux files (main.tex \includes chapters/*)
+chapters/*.aux
+
+# generated PDF
+*.pdf
+
+# Editor/OS
+.DS_Store
+Thumbs.db
+*.swp

@@ -1,0 +1,20 @@
+\section{Fazit und Ausblick}
+\label{sec:fazit}
+
+%% TODO: Dieses Kapitel ist ein Platzhalter und sollte erst final
+%% geschrieben werden, wenn Anforderungen 1, 2 und 4 (QUARC-Portierung,
+%% Kraftsensor-Integration, Regelungsapplikation) umgesetzt und ausgewertet
+%% sind. Der folgende Text fasst nur den Stand nach Abschluss der
+%% Baseline-Messung zusammen.
+
+Im bisherigen Projektverlauf wurde die bestehende MATLAB/KVP-Anbindung
+(Friesen~\cite{friesen2021}) messtechnisch als Baseline charakterisiert
+(Abschnitt~\ref{sec:baseline}). Die Ergebnisse bestätigen quantitativ, was
+Friesen in seiner eigenen Bewertung bereits als \enquote{teilweise erfüllt}
+einstufte: Die Zykluszeit streut trotz einer harten Untergrenze von
+\SI{12}{\milli\second} bis über \SI{140}{\milli\second}, mit einer klaren
+Trennung zwischen wiederkehrendem Scheduling-Jitter an Bahnsegmentübergängen
+und seltenen, aber deutlich größeren \ac{tcpip}-Aussetzern. Diese Baseline
+bildet den Vergleichsmaßstab für die QUARC-Portierung.
+
+% TODO: Die weiteren Arbeitsschritte laut Aufgabenstellung sind: die Portierung der Anbindung auf eine deterministisch getaktete QUARC/Simulink-Struktur, die hard- und softwareseitige Integration eines Kraftsensors über die QUARC-I/O-Karte (unter Berücksichtigung der bei Hübel bereits genutzten ethercat-Anbindung, die Wiederholung der Latenzmessung mit dem neuen Aufbau zum direkten Vergleich mit der hier vorgestellten Baseline, sowie die Umsetzung einer totzeitkompensierten, kraftbegrenzten Regelungsapplikation.

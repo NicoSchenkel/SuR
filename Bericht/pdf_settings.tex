@@ -1,0 +1,37 @@
+%% ========================================================================
+%%%% PDF settings
+%% ========================================================================
+
+\pdfcompresslevel=9
+
+%% Declarations of hyperref should be the last definitions of the preamble
+\usepackage[
+unicode=true,
+backref,
+pagebackref=false,
+bookmarks=true,
+bookmarksopen=false,
+pdfpagemode=UseNone,
+plainpages=false,
+urlcolor=DispositionColor,
+linkcolor=DispositionColor,
+citecolor=DispositionColor,
+anchorcolor=DispositionColor,
+colorlinks=\mycolorlinks,
+breaklinks,
+hidelinks
+]{hyperref}
+
+%% all strings need to be loaded after hyperref was loaded with unicode support
+%% if not the field is garbled in the output for characters like ČŽĆŠĐ
+\hypersetup{
+pdftitle = {\mytitle},
+pdfauthor = {\myauthor},
+pdfsubject = {\mysubject},
+pdfproducer = {\myauthor},
+pdfkeywords = {\mykeywords}
+}
+
+%% Break URLs in bibliography
+\PassOptionsToPackage{hyphens}{url}
+%\setcounter{biburllcpenalty}{8000}

@@ -1,0 +1,176 @@
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{svg}
+\usepackage{siunitx}
+\usepackage{caption}
+% Define colors for syntax highlighting
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+% Configure listings style
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+%% include \begin{comment} and \end{comment}
+\usepackage{verbatim}
+
+%% Set paper and border size
+\usepackage[paper=a4paper,left=25mm,right=25mm,top=25mm,bottom=25mm]{geometry}
+
+%% UTF8 as input characters; UCS incompatible to biblatex
+\usepackage[utf8]{inputenc}
+
+%% The default setting of the language is American. Please changesettings for
+%% additional or alternative languages used in main.tex.
+%% Please note that the default language of the document is the *last*language
+%% which is added to the package options.
+%% To set only parts of your document in a different language as the rest,
+%% use for example\newline\verb+\foreignlanguage{ngerman}{Beispieltext indeutscher Sprache}+\newline
+\usepackage[\mylanguage]{babel}
+
+%% This package defines basic colors. If you want to get rid of colored links
+%% and headings please change corresponding value in main.tex to {0,0,0}.
+%% Used for links and so forth in screen-version
+\usepackage[dvipsnames]{xcolor}
+\definecolor{DispositionColor}{RGB}{\mydispositioncolor}
+
+%% The widely used package to use graphical images within a LaTeXdocument.
+%% \includegraphics[width=42mm]{figures/image}
+\usepackage{graphicx}
+
+%% For example on title pages you might want to have a logo on the upperright
+%% corner of the first page (only). The package \texttt{eso-pic} is ableto
+%% place things on absolute and relative positions on the whole page.
+\usepackage{eso-pic}
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+\usepackage{booktabs}
+
+%% List of abbreviations
+\usepackage{acronym}
+
+   %% Use biblatex for bibliography
+   %% With "Sorting=None" the numbering is done according to the order of appearance. 
+   %\usepackage[style=numeric,sorting=none]{biblatex}
+   
+   %% Used for quotes
+   \usepackage{csquotes}
+   
+   %% Add fontec to hyphenate umlaut and fix-cm to fix changes in section heading
+   \usepackage[T1]{fontenc}
+   \usepackage{fix-cm}
+
+   %% This document template is able to generate an output that uses colorized
+   %% headings, captions, page numbers, and links. The color named
+   %% `DispositionColor' used in this document is defined near the definition
+   %% of package xcolor
+   %% The changes required for headings, page numbers and captions are defined
+   %% here.
+   %% Settings for colored links are handled by the definitions of the
+   %% hyperref package
+   %% \setheadsepline{.4pt}[\color{DispositionColor}]
+   %\renewcommand{\headfont}{\normalfont\sffamily\color{DispositionColor}}
+   %\renewcommand{\pnumfont}{\normalfont\sffamily\color{DispositionColor}}
+   %\addtokomafont{disposition}{\color{DispositionColor}}
+   %\addtokomafont{caption}{\color{DispositionColor}\footnotesize}
+   %\addtokomafont{captionlabel}{\color{DispositionColor}}
+
+
+    \renewcommand{\familydefault}{\sfdefault}
+
+   %% Add package to add long text tables
+   \usepackage{longtable}
+   
+   \usepackage{etoolbox}
+   
+   %% for the code-block environment with listing and reference possibility:
+   %% \begin{code}{<language>}{<caption>}{<label>} 
+   %% ... 
+   %% \end{code}
+   %% is also used with listings so there is a list of code blocks
+   \usepackage{listings}
+   \usepackage[figure,table,lstlisting]{totalcount}
+   %\renewcommand{\lstlistingname}{Code}
+   \usepackage{caption}
+
+   %% Use caption package to customize image, code and table captions
+   \usepackage[
+       font =      {footnotesize, sf}, %% Sans Serif font family
+       labelfont = {footnotesize, bf} %% Bold font series
+   ]{caption}
+   
+   %% include amsmath to include text like ä,ö,ü,ß in equation
+   \usepackage{amsmath}
+   
+   %% set bibliographystyle to DHBW appropriate
+   \bibliographystyle{abbrvdin}
+   
+   %% to quote directly in text
+   \newcommand*{\zitext}[2]{%
+      \glqq#1\grqq\ %
+      #2%
+   }
+
+   %% include package sinunitx to format units
+   \usepackage[ 
+   locale=DE, 
+   separate-uncertainty, 
+   mode = text,
+   detect-all,
+   multi-part-units      = single, 
+   range-units           = single, 
+   list-units           = single, 
+   ]{siunitx}
+   
+   \DeclareSIUnit\fps{fps}    %% declare own units e.g. fps
+   
+   % to include pdfs as img or pdfs
+   \usepackage{graphics}
+   \usepackage{pdfpages}
+   
+   % rotating of e.g. tables
+   \usepackage{rotating}
+   
+   % combining of rows in tables
+   \usepackage{multirow}
+   
+   \usepackage{subcaption}
+   
+   %\usepackage{graphicx}
+   
+   \usepackage{etoolbox}
+   
+   % set table font to sf
+   \AtBeginEnvironment{tabular}{\sffamily}
+   
+   \usepackage{listings}
+   
+   %\lstdefinestyle{mystyle}{
+   %    basicstyle=\sffamily\small,
+   %    
+   %}
+   %
+   %\lstset{style=mystyle}
+
+%\usepackage[hidelinks]{hyperref}
