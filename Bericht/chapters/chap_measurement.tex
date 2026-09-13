@@ -308,7 +308,6 @@ Anforderung~3 ist das PC-seitige Timing damit ein notwendiger, aber noch
 nicht hinreichender Baustein; die vollständige Ende-zu-Ende-Messung setzt
 die noch ausstehende Polling-Implementierung auf QUARC-Seite voraus.
 
-\subsection{QUARC-Portierung, Sensor-Integration und Regelungsapplikation}
 \subsection{Regelungsversuche und Bewertung}
 
 Zur Bewertung des Regelungs- und Sensorverhaltens wurde ein Versuch mit dem
@@ -357,3 +356,28 @@ direkt in neue Bewegungsbefehle umgesetzt werden.
 Der Versuch zeigt damit, dass der vorgegebene Abstand grundsätzlich erreicht
 wird, während Totzeit, Begrenzung des Stellsignals und Schwankungen des
 Ultraschallsensors das dynamische Regelverhalten beeinflussen.
+Ergänzend wurde die in Abschnitt~4.5.4 beschriebene Smith-Kompensation
+praktisch untersucht. Ausgangspunkt war eine Wartezeit von 30 Ticks zwischen
+zwei Positionsaktualisierungen. Mit aktivierter Smith-Kompensation wurde
+anschließend eine reduzierte Wartezeit von 20 Ticks getestet, wobei im
+durchgeführten Versuch kein instabiles Verhalten auftrat. Bei einer weiteren
+Reduktion auf 10 Ticks kam es dagegen zu starken Schwingungen, sodass der
+Versuch aus Sicherheitsgründen abgebrochen wurde.
+Abbildung~\ref{fig:smith_20ticks} zeigt den Signalverlauf des stabilen
+Versuchs mit 20 Ticks.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\linewidth]{images/smith_20ticks.png}
+    \caption{Regelungsverhalten mit aktivierter Smith-Kompensation bei
+    einer Wartezeit von 20 Ticks zwischen den Positionsaktualisierungen.}
+    \label{fig:smith_20ticks}
+\end{figure}
+
+Eine weitere systematische Untersuchung war anschließend nicht mehr möglich,
+da der Ultraschallsensor keine zuverlässigen Messwerte mehr lieferte.
+Daher lässt sich aus den durchgeführten Versuchen keine robuste Verbesserung
+des Gesamtsystems durch die Smith-Kompensation ableiten. Im durchgeführten
+Versuch blieb das System mit aktivierter Smith-Kompensation bei einer
+Wartezeit von 20 Ticks stabil. Die Smith-Kompensation wurde nicht in die
+final verwendete Regelungsversion übernommen.

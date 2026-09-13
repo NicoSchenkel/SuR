@@ -406,3 +406,42 @@ das angenäherte Streckenmodell
 \end{equation}
 
 \subsubsection{Reglerparametrierung}
+
+Nico?
+
+\subsubsection{Umsetzung der Smith-Kompensation}
+
+Aufbauend auf dem in Abschnitt~3.6.3 beschriebenen Prinzip wurde der
+Smith-Prädiktor testweise in das Regelungsmodell integriert. Ziel war es zu
+untersuchen, ob sich der Einfluss der vorhandenen Totzeit verringern und
+dadurch die Wartezeit zwischen den Positionsaktualisierungen reduzieren lässt.
+
+Als Eingang des Prädiktors wurde die tatsächlich an den Roboter übertragene
+Z-Position verwendet. Diese wurde aus der von Stateflow erzeugten Nachricht
+\texttt{writeMsg} ausgelesen. Damit wird nicht ein bereits intern berechneter,
+sondern der tatsächlich gesendete Zielwert für die Prädiktion verwendet.
+
+Abbildung~\ref{fig:smith_simulink} zeigt die im Simulink-Modell umgesetzte
+Struktur. Das Modell berechnet eine Vorhersage ohne Verzögerung
+(\texttt{zHatOhne}) und eine verzögerte Vorhersage
+(\texttt{zHatMit}). Die daraus entstehende Smith-Korrektur wird mit dem
+Faktor $0{,}3$ gewichtet und zum realen Sensorsignal addiert. Das resultierende
+Signal \texttt{Sensor\_pred} wird anschließend dem Regler zurückgeführt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{images/smith_simulink.png}
+    \caption{Experimentelle Umsetzung der Smith-Kompensation im
+    Simulink-Modell.}
+    \label{fig:smith_simulink}
+\end{figure}
+
+Als Ausgangspunkt wurden die zuvor bestimmten Streckenparameter verwendet.
+Im Verlauf der Versuche wurde das Prädiktormodell angepasst. Für die zuletzt
+durchgeführten Tests wurden $T_1=\SI{0.3}{\second}$, eine Verzögerung von
+fünf Abtastschritten bei $T_s=\SI{0.1}{\second}$ sowie ein
+Gewichtungsfaktor von $0{,}3$ verwendet.
+
+Der Smith-Prädiktor wurde nur experimentell untersucht und nicht in die
+final verwendete Regelung übernommen. Die Ergebnisse der Versuche werden
+in Kapitel~5 bewertet.
