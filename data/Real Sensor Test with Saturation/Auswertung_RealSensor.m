@@ -4,6 +4,13 @@ clear; clc; close all;
 % Datei laden
 load('Messungen.mat');
 
+% Ordner fuer die Abbildungen (wie in auswertung_baseline.m / auswertung_quarc.m)
+SKRIPTORDNER = fileparts(mfilename('fullpath'));
+ABBILDUNGSORDNER = fullfile(SKRIPTORDNER, 'Abbildungen');
+if ~exist(ABBILDUNGSORDNER, 'dir')
+    mkdir(ABBILDUNGSORDNER);
+end
+
 %% 2. SIGNAL-KONFIGURATION (Hier einfach selbst sortieren & anpassen)
 % Trage hier alle Signale in der gewünschten Reihenfolge ein:
 sigNames = { ...
@@ -60,6 +67,9 @@ end
 
 sgtitle('Alle Signale einzeln (Subplots)');
 
+exportgraphics(gcf, fullfile(ABBILDUNGSORDNER, 'realsensor_signale_einzeln.png'), ...
+    'Resolution', 300);
+
 %% 5. GEMEINSAMER PLOT (Alle in einer Figure)
 figure('Name', 'Signale gemeinsam', 'Color', 'w');
 hold on;
@@ -85,3 +95,8 @@ xlabel('Zeit [s]');
 ylabel('Wert');
 title('Alle Signale in einem Plot');
 legend('Interpreter', 'none', 'Location', 'best');
+
+exportgraphics(gcf, fullfile(ABBILDUNGSORDNER, 'realsensor_signale_gesamt.png'), ...
+    'Resolution', 300);
+
+fprintf('2 Abbildungen gespeichert in: %s\n', ABBILDUNGSORDNER);

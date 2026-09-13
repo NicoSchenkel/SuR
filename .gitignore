@@ -25,7 +25,7 @@
 chapters/*.aux
 
 # generated PDF
-*.pdf
+main.pdf
 
 # Editor/OS
 .DS_Store
