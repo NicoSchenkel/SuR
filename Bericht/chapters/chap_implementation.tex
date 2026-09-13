@@ -154,7 +154,7 @@ In den Wartezuständen bleibt der Schreibkanal inaktiv.
 Die Bedingung \texttt{threshold > sensorData} stellt zusätzlich einen Sicherheitsmechanismus dar.
 Dieser verhindert, dass der Roboterarm der Tischplatte zu nahe kommt bei falscher Befehlseingabe.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{images/ablaufsteuerung.png}
     \caption{Zustandsmaschine der Ablaufsteuerung (Stateflow-Chart, eigene Darstellung).}
@@ -164,9 +164,77 @@ Dieser verhindert, dass der Roboterarm der Tischplatte zu nahe kommt bei falsche
 
 \subsection{Integration des Ultraschallsensors} \label{sec:sensor}
 
+
 \subsubsection{Hardware}
+Für die Realisierung der sensorbasierten Rückführung wurde ein Ultraschallsensor
+des Modells US-016 in den Versuchsaufbau integriert. Der Sensor erfasst den
+Abstand zum Messobjekt und stellt die Messinformation über einen analogen Ausgang
+bereit. Das Signal wird über die Quanser Q2-USB in das QUARC/Simulink-Modell
+eingelesen.
+
+Die elektrische Verschaltung des Sensors mit der Q2-USB ist in
+Abbildung~\ref{fig:ultraschall_verschaltung} dargestellt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{images/ultraschall_verschaltung.jpg}
+    \caption{Schematische Verschaltung des US-016-Ultraschallsensors mit der Quanser Q2-USB.}
+    \label{fig:ultraschall_verschaltung}
+\end{figure}
+
+Für die Versuchsdurchführung wurde der Ultraschallsensor am Greifer befestigt
+und so ausgerichtet, dass der Abstand in Bewegungsrichtung der z-Achse erfasst
+wurde. Je nach Anwendung kann der Sensor auch an einer anderen Position bzw.
+Orientierung am Roboter angebracht werden; die Zuordnung zur jeweiligen
+Bewegungsachse muss im Simulink-Modell entsprechend angepasst werden.
+
+Die Skalierung, Filterung und Kalibrierung des eingelesenen Sensorsignals wird
+im folgenden Abschnitt beschrieben.
 
 \subsubsection{Sensorsignal}
+Der Ultraschallsensor stellt am Ausgang \texttt{OUT} ein analoges
+Spannungssignal bereit, dessen Wert vom gemessenen Abstand abhängt. Dieses
+Signal wird über den \texttt{HIL Read}-Block der Q2-USB in Simulink eingelesen.
+Anschließend wird das Signal durch die Faktoren 100 und 0,6144 skaliert und
+damit in einen Abstandswert in Zentimetern umgerechnet. Zur Reduzierung von
+Schwankungen und einzelnen Ausreißern wird anschließend ein Medianfilter mit
+einer Fensterlänge von fünf Messwerten verwendet.
+
+Die Signalverarbeitung im verwendeten Kalibriermodell ist in
+Abbildung~\ref{fig:ultraschall_signalverarbeitung} dargestellt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{images/sensor_calibration_simulink.jpg}
+    \caption{Signalverarbeitung und Kalibrierung des Ultraschallsensors im Simulink-Modell.}
+    \label{fig:ultraschall_signalverarbeitung}
+\end{figure}
+
+Zur Kalibrierung wurden Referenzmessungen bei Abständen von 10 bis 60 cm
+durchgeführt. Da die Abstände zunächst von der Sensorbasis aus gemessen wurden,
+wurde bei der Auswertung ein Offset von 1,2 cm berücksichtigt. Aus den
+Messwerten wurde anschließend eine lineare Kalibrierfunktion bestimmt:
+
+\begin{equation}
+    d_{\mathrm{kal}}
+    =
+    1{,}037297 \cdot d_{\mathrm{mess}}
+    - 0{,}596957\,\mathrm{cm}.
+\end{equation}
+
+Die daraus resultierende Kalibriergerade sowie die verwendeten Messpunkte sind
+in Abbildung~\ref{fig:ultraschall_kalibrierung} dargestellt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.50\textwidth]{images/kalibrierung_ultraschallsensors.png}
+    \caption{Lineare Kalibrierung des Ultraschallsensors unter Berücksichtigung des Offsets.}
+    \label{fig:ultraschall_kalibrierung}
+\end{figure}
+
+
+Die ermittelten Parameter wurden im Kalibriermodell als Gain und Bias umgesetzt
+und liefern den korrigierten Abstandswert für die weitere Verarbeitung.
 
 \subsubsection{Ablaufsteuerung Stateflow (Vorwort für Regelungsstrategie)}
 \label{sec:AblaufsteuerungNico}
