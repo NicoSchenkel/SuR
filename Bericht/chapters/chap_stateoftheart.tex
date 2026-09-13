@@ -21,11 +21,6 @@ dargestellten Komponenten (vgl.\ Hübel~\cite{huebel2022}, Kap.~3.1):
     Projektierung, Programmierung und Diagnose der Zelle.
 \end{itemize}
 
-%% TODO: Bild/Foto der realen Zelle NICHT hier einbinden (siehe
-%% Projekt-Konvention: keine von Claude generierten Bilder, keine
-%% eingescannten Fotos ohne Rücksprache) -- stattdessen das nachfolgende
-%% TikZ-Schema. Bei Bedarf gerne ein echtes Foto der Zelle ergänzen.
-
 \begin{figure}[H]
     \centering
     \begin{tikzpicture}[
@@ -198,6 +193,120 @@ diesem Vorprojekt über \ac{ethercat} an die Zelle angebunden. Die genaue
 Verdrahtung bzw.\ Konfiguration dieser \ac{ethercat}-Anbindung ist in
 Hübels Bericht an anderer Stelle (Kap.~4, Implementierung) beschrieben.
 % TODO: Diese Details wurden für den vorliegenden Stand-der-Technik-Abschnitt noch nicht ausgewertet und sollten bei Bedarf für die Kraftsensor-Integration in Thema~2 (Anforderung~2) gezielt nachgelesen werden, da sich die geplante QUARC-I/O-Anbindung des Kraftsensors technisch daran orientieren dürfte.
+
+\subsection{Werkzeuge zur Realisierung: QUARC und die Quanser-Blockbibliothek}
+\label{sec:quarc_bloecke}
+
+Für die Umsetzung von Thema~2 wird ergänzend zu den in
+Abschnitt~\ref{sec:anbindung} vorgestellten Anbindungsmöglichkeiten
+\textbf{QUARC} (Quanser) als Echtzeit-Zielsystem für Simulink eingesetzt.
+Der Ablauf entspricht dabei dem bereits aus den Laborversuchen dieses
+Moduls bekannten Workflow: Das Simulink-Blockschaltbild wird über den
+Simulink~Coder in C-Code übersetzt, mit Microsoft Visual Studio zu einem
+ausführbaren Programm kompiliert und anschließend von QUARC auf den
+Echtzeitkern der Zielmaschine übertragen, wo es deterministisch getaktet
+ausgeführt wird. Tabelle~\ref{tab:quarc_bloecke} fasst die
+QUARC-/Quanser-spezifischen Blöcke zusammen, die in den beiden für dieses
+Kapitel bereitgestellten Simulink-Modellen (mit bzw.\ ohne
+Smith-Kompensation, siehe Abschnitt~\ref{sec:smith}) verwendet werden.
+
+\begin{table}[H]
+    \centering
+    \caption{In den Thema-2-Simulink-Modellen verwendete QUARC-/Quanser-Blöcke.}
+    \label{tab:quarc_bloecke}
+    \begin{tabular}{p{3.4cm}p{9.8cm}}
+        \toprule
+        \textbf{Block} & \textbf{Funktion} \\
+        \midrule
+        HIL Initialize & Initialisiert die Ein-/Ausgabe-Hardware zu Simulationsbeginn \\
+        % TODO: Exakter Board-Typ/Kanalbelegung der Thema-2-Hardware noch zu ergänzen.
+        HIL Read (Analog) & Liest das analoge Sensorsignal ein; in der aktuellen Modellausbaustufe als simulierter Ultraschallsensor abgebildet. \\
+        Stream Client & QUARC-eigener Block zur TCP/IP-Kommunikation innerhalb des Echtzeitmodells; sendet und empfängt byte-codierte Nachrichten, ohne auf einen extern pollenden Client angewiesen zu sein. \\
+        QUARC Time & Liefert die Echtzeit-Zeitbasis des QUARC-Kernels. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsubsection{TCP/IP-Kommunikation über Stream Client}
+
+Anders als bei der MATLAB/KVP-Anbindung (Abschnitt~\ref{sec:friesen}), bei
+der ein externes MATLAB-Skript zyklisch pollend auf den \ac{kvp}-Server
+zugreift, integriert QUARC die TCP/IP-Kommunikation direkt als Block
+(\texttt{Stream Client}) in das Echtzeitmodell selbst. Byte-codierte
+Nachrichten werden ähnlich dem Aufbau der \ac{kvp}-Anfragen über
+MATLAB-Function-Blöcke geparst, etwa zur Umrechnung einzelner
+ASCII-kodierter Zeichen in numerische Werte. Da diese Kommunikation
+innerhalb des Echtzeitkerns läuft, unterliegt sie nicht dem durch den
+MATLAB-Interpreter verursachten Overhead, der die in
+Abschnitt~\ref{sec:baseline} gemessene Streuung der MATLAB/KVP-Baseline
+mitverursacht.
+
+\subsubsection{Ablaufsteuerung mittels Stateflow}
+
+Zur ereignisgesteuerten Ablaufsteuerung (Initialisierung, Modusumschaltung,
+Bewegungsfreigabe) enthalten die Modelle zusätzlich ein
+\textbf{Stateflow}-Chart. Stateflow ergänzt die datenflussorientierte
+Simulink-Blockdiagrammebene um eine zustandsbasierte Beschreibung: Zustände
+und Transitionen werden explizit modelliert und über Guard-Bedingungen
+(z.\,B.\ Schwellwert- oder Tastendruck-Signale) sowie aufgerufene
+MATLAB-Function-Blöcke zum Aufbau der TCP-Nachrichten aktiviert.
+
+\subsubsection{Totzeitkompensation nach Smith}
+\label{sec:smith}
+
+Für die spätere totzeitkompensierte Regelungsapplikation (Anforderung~4,
+siehe Abschnitt~\ref{sec:anforderungen}) enthält eine der beiden
+bereitgestellten Modellvarianten zusätzlich einen \textbf{Smith-Prädiktor}.
+Dessen Grundidee ist es, die Regelstrecke zusätzlich durch ein
+Streckenmodell ohne Totzeit nachzubilden (Prädiktion \texttt{zHatOhne}) und
+dieselbe Prädiktion zusätzlich durch ein Totzeitmodell zu verzögern
+(\texttt{zHatMit}), um sie mit dem real gemessenen, totzeitbehafteten
+Sensorsignal vergleichbar zu machen. Die Differenz aus gemessenem Signal
+und verzögerter Prädiktion wird als Korrekturterm auf die totzeitfreie
+Prädiktion \texttt{zHatOhne} aufaddiert und ergibt das an den Regler
+zurückgeführte, korrigierte Signal \texttt{Sensor\_pred}
+(Abbildung~\ref{fig:smith}).
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        box/.style={draw, rounded corners, minimum width=2.3cm, minimum height=0.9cm, align=center, font=\footnotesize},
+        sum/.style={draw, circle, minimum size=0.7cm, font=\footnotesize, inner sep=1pt},
+        conn/.style={-{Latex[length=2mm]}, thick},
+    ]
+        \node[sum] (s1) at (0,0) {$\Sigma$};
+        \node[box] (reg) at (2.2,0) {Regler};
+        \node[box] (strecke) at (5.2,0) {Strecke\\(mit Totzeit)};
+        \node[sum] (spred) at (0,-1.6) {$\Sigma$};
+        \node[box] (model) at (2.2,-1.6) {Streckenmodell\\(ohne Totzeit)};
+        \node[box] (delay) at (5.2,-1.6) {Totzeitmodell};
+
+        \draw[conn] (-1.6,0) -- (s1) node[midway, above, font=\tiny]{Sollwert};
+        \draw[conn] (s1) -- (reg);
+        \draw[conn] (reg) -- (strecke);
+        \draw[conn] (reg.south) -- (model.north);
+        \draw[conn] (model) -- (delay) node[midway, above, font=\tiny]{$\hat{z}_{\text{ohne}}$};
+        \draw[conn] (model.west) -- (spred.east) node[midway, above, font=\tiny]{$+$};
+        \draw[conn] (delay.south) -- (5.2,-2.3) -- (0,-2.3) -- (spred.south) node[near start, below, font=\tiny]{$-\ \hat{z}_{\text{mit}}$};
+        \draw[conn] (strecke.east) -- (7.0,0) -- (7.0,-3.2) -- (-0.35,-3.2) -- (spred.west) node[near start, right, font=\tiny]{$-$\ Sensor$_{\text{real}}$};
+        \draw[conn] (spred.north) -- (s1.south) node[midway, right, font=\tiny]{Sensor$_{\text{pred}}$};
+    \end{tikzpicture}
+    \caption{Struktur eines Smith-Prädiktors, mit den Signalbezeichnungen der
+    bereitgestellten Simulink-Modellvariante \texttt{smith} (eigene
+    Darstellung): \texttt{zHatOhne}/\texttt{zHatMit} entsprechen der
+    Streckenmodell-Prädiktion ohne bzw.\ mit nachgebildeter Totzeit,
+    \texttt{Sensor\_pred} dem an den Regler zurückgeführten korrigierten
+    Prädiktionssignal.}
+    \label{fig:smith}
+\end{figure}
+
+Von den beiden bereitgestellten Modellen enthält nur die Variante mit
+Smith-Kompensation die entsprechenden Zusatzblöcke (u.\,a.\ ein
+Unit-Delay-Element zur diskreten Totzeitmodellierung sowie eine
+Plausibilitätsprüfung des rohen Sensorsignals). In der finalen
+Modellversion wurde die Smith-Kompensation wieder entfernt; die
+Regelungsergebnisse beider Varianten werden im Rahmen der
+Reglerparametrierung in Kapitel~\ref{sec:implementierung} verglichen.
 
 \subsection{Ableitung für Thema 2}
 \label{sec:ableitung}
