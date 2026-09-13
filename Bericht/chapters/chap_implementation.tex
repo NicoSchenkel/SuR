@@ -26,6 +26,69 @@
 \subsection{Entwicklung der Regelungsstrategie}
 
 \subsubsection{Sprungversuch}
+\label{sec:sprungversuch}
+
+Zur ersten Charakterisierung der Regelstrecke mit dem realen
+Ultraschallsensor wurde ein Sprungversuch durchgeführt: Der
+Distanz-Sollwert (\texttt{soll}) wird bei $t=\SI{10.8}{\second}$ sprunghaft
+von \SI{30}{\centi\meter} auf \SI{20}{\centi\meter} reduziert, während die
+Robotersteuerung parallel den zugehörigen Positionsbefehl (\texttt{Target})
+sowie die tatsächliche Roboterposition (\texttt{istPosition}) in
+Millimeter mitschreibt. Abbildung~\ref{fig:realsensor_gesamt} zeigt alle
+fünf aufgezeichneten Signale überlagert, Abbildung~\ref{fig:realsensor_einzeln}
+dieselben Daten als Einzelplots.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\linewidth]{images/realsensor_signale_gesamt.png}
+    \caption{Sprungversuch am realen Ultraschallsensor: alle Signale
+    überlagert, erzeugt mit \texttt{Auswertung\_RealSensor.m}.}
+    \label{fig:realsensor_gesamt}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{images/realsensor_signale_einzeln.png}
+    \caption{Sprungversuch am realen Ultraschallsensor: Einzeldarstellung
+    aller fünf Signale.}
+    \label{fig:realsensor_einzeln}
+\end{figure}
+
+Vor dem Sprung befinden sich \texttt{Target} und \texttt{istPosition}
+praktisch deckungsgleich bei \SI{615.0}{\milli\meter}. Nach dem Sprung
+überschwingt \texttt{Target} auf ein Minimum von \SI{427.7}{\milli\meter}
+bei $t=\SI{12.3}{\second}$, \texttt{istPosition} folgt mit einer leichten
+Verzögerung auf ein Minimum von \SI{436.6}{\milli\meter} bei
+$t=\SI{13.2}{\second}$; beide pendeln sich anschließend auf den
+gemeinsamen Endwert von \SI{506.9}{\milli\meter} ein. Bezogen auf die
+Sprunghöhe von \SI{108.1}{\milli\meter} entspricht dies einem deutlichen
+Überschwingen von rund \SI{70}{\percent}; dies ist ein Hinweis auf ein eher
+schwach gedämpftes Übertragungsverhalten der aktuellen Reglerauslegung,
+das im Abschnitt zur Reglerparametrierung weiter untersucht werden sollte.
+
+Anhand des Zeitversatzes zwischen \texttt{Target} und \texttt{istPosition}
+(Nulldurchgang jeweils beim Mittelwert zwischen Ausgangs- und Endwert)
+ergibt sich eine erste grobe Schätzung der Gesamt-Totzeit des Systems von
+rund \SI{0.8}{\second}; eine genauere Bestimmung erfolgt im nachfolgenden
+Abschnitt zur Totzeit.
+
+Der Reglerausgang (\texttt{Regler}) liegt vor dem Sprung bei $\approx 0$
+und springt exakt mit dem Sollwertsprung auf seinen unteren Grenzwert von
+$-80$, an dem er für \SI{1.5}{\second} ($t=\SI{10.8}{\second}$ bis
+$\SI{12.3}{\second}$) verharrt, bevor er durch Null läuft, kurzzeitig
+positiv auf bis zu $+30$ überschwingt ($t\approx\SI{14.0}{\second}$) und
+sich anschließend wieder bei $\approx 0$ einpendelt. Die über 16
+aufeinanderfolgende Samples exakt konstante Auslenkung deutet auf eine
+reale Begrenzung (Sättigung) des Stellsignals hin, die während der starken
+initialen Korrekturbewegung aktiv wird (namensgebend für den Ordner
+\texttt{Real Sensor Test with Saturation} dieser Messung).
+% TODO: Zusammenhang zwischen dieser Stellgrößen-Sättigung und einer
+% möglichen Totzone des Reglers noch zu klären (Rücksprache im Team
+% ausstehend).
+
+Die Sensor-Messung selbst pendelt sich nach dem Sprung mit einer
+Restabweichung von nur \SI{-0.1}{\centi\meter} praktisch exakt auf den
+neuen Sollwert von \SI{20}{\centi\meter} ein.
 
 \subsubsection{Totzeit}
 
