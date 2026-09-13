@@ -147,18 +147,40 @@ Ergänzend zur MATLAB/KVP-Baseline (Abschnitt~\ref{sec:baseline}) wurde die
 Zykluszeit-Zuverlässigkeit der neuen QUARC/Simulink-Anbindung untersucht.
 Das verwendete Simulink-Modell (\texttt{SuR\_Projekt\_Wegpunkt\_v3.slx})
 sendet die Bahnsollwerte PC-seitig deterministisch über den
-QUARC-Echtzeitkern, wartet jedoch in dieser Ausbaustufe noch nicht auf eine
-Rückmeldung des \ac{krl}-Programms auf der Steuerung (Pollen); die
-entsprechende Erweiterung war zum Zeitpunkt dieser Messung noch nicht
-abgeschlossen. Gemessen wurde daher zunächst nur, ob QUARC seinen eigenen
-Modelltakt von \SI{100}{\milli\second} während der Laufzeit einhält; analog
-zur Baseline-Messung wurden dazu 5 identische Messläufe durchgeführt
+QUARC-Echtzeitkern, wartet jedoch in dieser Ausbaustufe nicht auf eine
+Rückmeldung des \ac{krl}-Programms auf der Steuerung (Pollen).
+Die entsprechende Erweiterung war zum Zeitpunkt dieser Messung noch nicht
+abgeschlossen.
+Gemessen wurde daher zunächst nur, ob QUARC seinen eigenen
+Modelltakt von \SI{100}{\milli\second} während der Laufzeit einhält.
+Analog zur Baseline-Messung wurden dazu 5 identische Messläufe durchgeführt
 (\texttt{QUARC\_Messung\_1}--\texttt{5.mat}). Ausgewertet wurden die
 geloggten Signale \texttt{cycleTime\_QUARC}, \texttt{measurementActive\_QUARC}
 und \texttt{time\_QUARC}, jeweils ohne den ersten Sample pro Lauf (kein
 vollständiger Messzyklus). Auswertung und Abbildungen erzeugt das
 MATLAB-Skript \texttt{auswertung\_quarc.m}, das die Struktur von
 \texttt{auswertung\_baseline.m} übernimmt.
+Anders als in dem Modell mit Sensor und Regelung werden hier nur die fünf Wegpunkte nach und nach vorgegeben und angefahren.
+Ein generierter \ac{kvr}-Befehl kann dabei folgendermaßen aussehen:
+
+\begin{lstlisting}
+writeMsg = buildTargetMsg( ...
+    420.1710, -93.1800, 574.0360, ...
+    70.2850, 89.0000, 90.0000, ...
+    2, 42);
+\end{lstlisting}
+
+Zur Erfassung des Modelltakts kann der Quanser Time-Block verwendet werden.
+Die Schaltung hierfür ist in Abb.\ref{fig:timeblock} erkennbar.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/quanserTime.png}
+    \caption{Schaltung zur Takterfassung in Quanser}
+    \label{fig:timeblock}
+\end{figure}
+
+Hiermit kann die Dauer jedes Takts erfasst werden.
 
 \subsubsection{Zykluszeit}
 

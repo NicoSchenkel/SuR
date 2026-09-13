@@ -2,25 +2,174 @@
 \label{sec:implementierung}
 
 \subsection{Neue Systemarchitektur}
-\label{sec:newarchitecture}
+\label{sec:neue-systemarchitektur}
+
+Die im Rahmen des Projekts entwickelte Struktur führt die MATLAB/KVP-Bahnvorgabe \cite{friesen2021} und die externe Sensorintegration \cite{huebel2022} in einem einzigen, unter QUARC deterministisch getakteten Simulink-Modell zusammen.
+Anstelle der bisherigen Windows-seitigen MATLAB-Skripte kompiliert QUARC das Modell auf einen echtzeitfähigen Kern, der mit festem Modelltakt läuft und damit unabhängig vom Scheduling des Windows-Interpreters arbeitet.
+
+Das Modell bildet zwei parallele, aber im selben Modelltakt ausgeführte
+Datenpfade:
+
+\begin{enumerate}
+    \item \textbf{Bahn-/Zustandskommunikation zur KR~C4} über zwei
+    unabhängige QUARC-\emph{Stream-Client}-Blöcke, die denselben TCP-Port
+    ansprechen, den bereits die \ac{kvp}-Anbindung nutzt (Port~7000).
+    Ein Block wird ausschließlich für das zyklische Lesen der Ist-Position
+    (\texttt{\$POS\_ACT}), ein zweiter ausschließlich für das Schreiben von Zustands- und Zielpositions-Kommandos verwendet.
+    \item \textbf{Sensorerfassung} über eine QUARC-I/O-Karte
+    (\texttt{HIL Initialize}/\texttt{HIL Read}), an deren Analogeingang der
+    Ultraschallsensor angeschlossen ist (Details in
+    Abschnitt~\ref{sec:sensor}).
+\end{enumerate}
+
+Beide Pfade laufen in einer zentralen Stateflow-Zustandsmaschine zusammen.
+Diese verknüpft die Bedienelemente (Start-Taster,
+Slider für Sollwerte), das gefilterte Sensorsignal und einen
+Regler-Zweig zu den auf der KR~C4 auszuführenden Bewegungs- und Modus-Kommandos und bildet damit
+gleichzeitig die Grundlage der in Abschnitt~\ref{sec:regelung}
+beschriebenen Regelungsstrategie.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.35\textwidth]{images/architektur_quarc.png}
+    \caption{Systemarchitektur der QUARC-Anbindung: Zusammenführung von
+    Bahnkommunikation (Stream Client, KVP-Protokoll) und Sensorintegration
+    (HIL-I/O) im Stateflow-Chart \texttt{Chart2} (eigene Darstellung).}
+    \label{fig:architektur-quarc}
+\end{figure}
+
+Abbildung~\ref{fig:architektur-quarc} zeigt den Datenfluss auf
+High-Level-Ebene, wobei Sensorintegration und Regelung bewusst als black
+boxes gehalten sind.
+Sie werden in den Abschnitten \ref{sec:sensor} bzw.\ \ref{sec:regelung} im Detail beschrieben.
+
+Zentrales Element ist die Stateflow-Zustandsmaschine.
+Diese erzeugt aus den Bedienelementen (Start-Taster, Slider) und aus dem
+Regelungsausgang die auszuführenden KVP-Kommandos
+(Zustands- und Zielpositions-Nachrichten).
+Sie sendet ausschließlich über den schreibenden \emph{Stream Client} an den \ac{kvp}-Server der KR~C4.
+Die Ist-Position wird über einen zweiten, rein lesenden \emph{Stream Client} vom \ac{kvp}-Server abgefragt.
+Die rückgelesene Ist-Position fließt jedoch nicht in die Zustandsmaschine selbst zurück, sondern direkt in den Regelungsblock, der daraus zusammen mit dem Sensorsignal den an die Zustandsmaschine übergebenen Sollwert bzw.\ die Korrekturgröße bildet.
+Der \ac{kvp}-Server selbst ist dabei nur die Windows-seitige Schnittstelle
+(vgl.\ Abschnitt~\ref{sec:matlab-kvp}).
+Die eigentliche Bewegungsausführung
+übernimmt das dahinterliegende \ac{krl}-Programm auf der VxWorks-Seite der
+Steuerung.
 
 \subsection{QUARC/TCP-IP-Kommunikation}
+\label{sec:quarc-tcpip}
 
 \subsubsection{Verbindung}
+\label{sec:quarc-verbindung}
+
+Die Portierung von \ac{kvp} nach QUARC (Anforderung~1) ersetzt nicht das
+\ac{kvp}-Protokoll selbst.
+Dieses bleibt unverändert aus der Vorarbeit von Friesen \cite{friesen2021}.
+Stattdessen wird die Matlab-Seite verändert.
+Anstelle der MATLAB-eigenen TCP/IP-Implementierung übernehmen zwei
+QUARC-\emph{Stream-Client}-Blöcke die Verbindung zum unveränderten
+\ac{kvp}-Server der KR~C4 auf der Adresse \texttt{tcpip://192.168.41.64:7000}.
+Beide Blöcke sind identisch parametriert:
+
+\begin{itemize}
+    \item \textbf{Datentyp/Puffer:} \texttt{uint8}, Sende-/Empfangs\-puffer\-größe
+    je \SI{1460}{\byte} (passend zur Ethernet-MTU), Byte-Reihenfolge
+    Little-Endian.
+    \item \textbf{Ausführung:} \emph{Use blocking I/O in a separate thread}
+    -- Senden und Empfangen laufen jeweils in eigenen QUARC-Threads statt in
+    einer pollenden Hauptschleife, wodurch der deterministische Modelltakt
+    nicht durch TCP-Wartezeiten blockiert wird.
+    \item \textbf{Optimierung:} \emph{Minimum latency},
+    \emph{Receive/Send all data} -- es wird keine Pufferung zugunsten des
+    Durchsatzes vorgenommen.
+\end{itemize}
+
+Durch die Trennung in zwei Clients, einen für das zyklische Lesen der
+Ist-Position und einen für das Schreiben von Kommandos, entkoppelt Lese-
+und Schreibpfade voneinander und vermeidet, dass ein langsamer
+Schreibzyklus die Positions-Rückmeldung verzögert (bzw. umgekehrt).
 
 \subsubsection{Senden und Empfangen}
+\label{sec:quarc-senden-empfangen}
 
-\subsubsection{Ablaufsteuerung}
+Auf Kommunikations-Ebene wird das aus Abschnitt~\ref{sec:friesen} bekannte
+\ac{kvp}-Nachrichtenformat verwendet (Kommando-Byte, Längenfelder,
+Variablenname, Wert).
+Jedoch werden nun diese Bytefolgen nicht mehr
+aus MATLAB, sondern aus dem Stateflow-Chart heraus erzeugt und über den
+QUARC-Stream gesendet. 
+Folgende Beispiele können dem Modell entnommen werden:
+
+\begin{itemize}
+    \item \textbf{Lesen} der Ist-Position: konstante Leseanfrage auf die
+    KRL-Variable \texttt{\$POS\_ACT} (siehe Abb.~\ref{fig:posact}).
+    \item \textbf{Schreiben} von Statusflags: Z.\,B.\ setzen
+    \texttt{buildEndTrueMsg()}/\texttt{buildEndFalseMsg()} die Variable
+    \texttt{ENDPROG} auf \texttt{TRUE}/\texttt{FALSE}.  \texttt{buildMode3Msg()} setzt in einer Nachricht
+    \texttt{PROGVAR\allowbreak=3}, \texttt{ACTFLAG=TRUE} und
+    \texttt{ENDPROG=TRUE}.
+    \item \textbf{Schreiben} einer Zielposition:
+    \texttt{buildTargetMsg(xTarget)} erzeugt einen KRL-Positionsstring \newline
+    (\verb|POS: X..., Y..., Z..., A..., B..., C..., S..., T...|) und schreibt ihn in die Variable
+    \texttt{MAT\_POS1}.
+\end{itemize}
+
+Empfangsseitig zerlegt ein \emph{MATLAB-Function}-Block die
+\ac{ascii}-Antwort der KR~C4, indem sie die Marker \verb|X|, \verb|Y|, \verb|Z|, \verb|A|, \verb|B|, \verb|C| im empfangenen Byte-Vektor
+sucht und die jeweils folgende Zahl (inkl.\ Vorzeichen und
+Nachkommastellen) manuell parst.
+Dadurch können die Nachrichten im QUARC-Echtzeitkontext ausgelesen werden.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/empfangenSc.png}
+    \caption{Empfangen und Verarbeiten der Positionsdaten}
+    \label{fig:posact}
+\end{figure}
 
 
-\subsection{Integration des Ultraschallsensors}
+\subsubsection{Ablaufsteuerung} \label{sec:quarc-ablaufsteuerung}
+
+Die Kommunikationssequenz ist als endliche Zustandsmaschine in
+Stateflow implementiert (siehe Abb.~\ref{fig:ablaufsteuerung}).
+Nach dem Start durchläuft sie zunächst die
+Initialisierung über \texttt{INIT\_END}, \texttt{WAIT\_END} und
+\texttt{SET\_MODE}. 
+Dabei wird zunächst \texttt{ENDPROG} gesetzt und anschließend der erforderliche Modus über
+\texttt{buildMode3Msg()} aktiviert.
+
+Anschließend beginnt der eigentliche Bewegungsablauf im Superstate
+\texttt{Moving}. 
+Dieser durchläuft \texttt{START\_MOVE} und \texttt{MOVE\_STEP}. 
+Dabei werden über \texttt{buildTargetMsg()} die Zielpositionen erzeugt und
+über den schreibenden \emph{Stream Client} an die KR~C4 übertragen. 
+Ist die Bedingung \texttt{threshold > sensorData} nicht erfüllt, wird der
+Zyklus nach 30 Ticks wiederholt.
+Bei Erfüllung der Bedingung wird der Bewegungsablauf über \texttt{STOP\_MOVE} beendet und anschließend
+\texttt{HOLD} erreicht.
+
+Das \texttt{writeEn}-Flag aktiviert dabei ausschließlich in den Schreibzuständen die Übertragung über den
+\emph{Stream Client}. 
+In den Wartezuständen bleibt der Schreibkanal inaktiv.
+Die Bedingung \texttt{threshold > sensorData} stellt zusätzlich einen Sicherheitsmechanismus dar.
+Dieser verhindert, dass der Roboterarm der Tischplatte zu nahe kommt bei falscher Befehlseingabe.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/ablaufsteuerung.png}
+    \caption{Zustandsmaschine der Ablaufsteuerung (Stateflow-Chart, eigene Darstellung).}
+    \label{fig:ablaufsteuerung}
+\end{figure}
+
+
+\subsection{Integration des Ultraschallsensors} \label{sec:sensor}
 
 \subsubsection{Hardware}
 
 \subsubsection{Sensorsignal}
 
 
-\subsection{Zusammenführung von Sensorik und Roboterkommunikation}
+\subsection{Zusammenführung von Sensorik und Roboterkommunikation} \label{sec:regelung}
 
 
 \subsection{Entwicklung der Regelungsstrategie}
