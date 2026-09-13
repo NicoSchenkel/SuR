@@ -177,7 +177,7 @@ Abbildung~\ref{fig:ultraschall_verschaltung} dargestellt.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.65\textwidth]{images/ultraschall_verschaltung.jpg}
+    \includegraphics[width=0.6\textwidth]{images/ultraschall_verschaltung.jpg}
     \caption{Schematische Verschaltung des US-016-Ultraschallsensors mit der Quanser Q2-USB.}
     \label{fig:ultraschall_verschaltung}
 \end{figure}
@@ -205,7 +205,7 @@ Abbildung~\ref{fig:ultraschall_signalverarbeitung} dargestellt.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.88\textwidth]{images/sensor_calibration_simulink.jpg}
+    \includegraphics[width=0.8\textwidth]{images/sensor_calibration_simulink.jpg}
     \caption{Signalverarbeitung und Kalibrierung des Ultraschallsensors im Simulink-Modell.}
     \label{fig:ultraschall_signalverarbeitung}
 \end{figure}
@@ -310,72 +310,102 @@ Um eine flüssigere Bewegung zu erreichen, wurde der \textit{Saturation}-Block e
 Vergleicht man die Zielposition (\textit{Target}) und die Ist-Position, wird deutlich, dass die Ist-Position dem Target hinterherhinkt [vgl. \ref{fig:signaleZusammen}]. Zudem werden nicht alle Targets angefahren; dies ist daran erkennbar, dass die Target-Werte eine Spitze bei $12{,}8$ aufweisen, die Ist-Positionen diese Spitze jedoch nicht erreichen. Die Grafik legt nahe, dass die Totzeit des Ist-Positionswertes für das starke Überschwingen verantwortlich war.
 
 Wurden zwischen den \texttt{MOVE\_STEP}-Zuständen $30$~Ticks gewartet, fuhr der Arm ohne Überschwingen auf die gewünschte Position. Allerdings benötigte das System diese $30$~Ticks, um eine Signaländerung wahrzunehmen.
-
 \subsubsection{Sprungversuch}
-\label{sec:sprungversuch}
 
-Zur ersten Charakterisierung der Regelstrecke mit dem realen
-Ultraschallsensor wurde ein Sprungversuch durchgeführt: Der
-Distanz-Sollwert (\texttt{soll}) wird bei $t=\SI{10.8}{\second}$ sprunghaft
-von \SI{30}{\centi\meter} auf \SI{20}{\centi\meter} reduziert, während die
-Robotersteuerung parallel den zugehörigen Positionsbefehl (\texttt{Target})
-sowie die tatsächliche Roboterposition (\texttt{istPosition}) in
-Millimeter mitschreibt. Abbildung~\ref{fig:realsensor_gesamt} zeigt alle
-fünf aufgezeichneten Signale überlagert, Abbildung~\ref{fig:realsensor_einzeln}
-dieselben Daten als Einzelplots.
+Für den Sprungversuch wurde im Simulink-Modell ein Step-Block verwendet.
+Als Anfangswert wurden \SI{574}{\milli\meter} und als Endwert
+\SI{579}{\milli\meter} eingestellt. Der Sprung erfolgte nach
+\SI{15}{\second}. Die vorgegebene Z-Position wurde an die KUKA-Steuerung
+übertragen, während die tatsächliche Z-Position über die Systemvariable
+\texttt{\$POS\_ACT} zurückgelesen und aufgezeichnet wurde. Die Abtastzeit des
+QUARC-Modells betrug $T_s=\SI{10}{\milli\second}$.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\linewidth]{images/realsensor_signale_gesamt.png}
-    \caption{Sprungversuch am realen Ultraschallsensor: alle Signale
-    überlagert, erzeugt mit \texttt{Auswertung\_RealSensor.m}.}
-    \label{fig:realsensor_gesamt}
-\end{figure}
+Die Sprungantwort zeigt nach einer anfänglichen Verzögerung einen
+näherungsweise PT1-förmigen Verlauf. Da der Sollwert und die stationäre
+Istposition jeweils um etwa \SI{5}{\milli\meter} ansteigen, ergibt sich für
+die Streckenverstärkung näherungsweise
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\linewidth]{images/realsensor_signale_einzeln.png}
-    \caption{Sprungversuch am realen Ultraschallsensor: Einzeldarstellung
-    aller fünf Signale.}
-    \label{fig:realsensor_einzeln}
-\end{figure}
+\begin{equation}
+    K =
+    \frac{\Delta Z_{\mathrm{Ist}}}
+         {\Delta Z_{\mathrm{Soll}}}
+    \approx 1.
+\end{equation}
 
-Vor dem Sprung befinden sich \texttt{Target} und \texttt{istPosition}
-praktisch deckungsgleich bei \SI{615.0}{\milli\meter}. Nach dem Sprung
-überschwingt \texttt{Target} auf ein Minimum von \SI{427.7}{\milli\meter}
-bei $t=\SI{12.3}{\second}$, \texttt{istPosition} folgt mit einer leichten
-Verzögerung auf ein Minimum von \SI{436.6}{\milli\meter} bei
-$t=\SI{13.2}{\second}$; beide pendeln sich anschließend auf den
-gemeinsamen Endwert von \SI{506.9}{\milli\meter} ein. Bezogen auf die
-Sprunghöhe von \SI{108.1}{\milli\meter} entspricht dies einem deutlichen
-Überschwingen von rund \SI{70}{\percent}; dies ist ein Hinweis auf ein eher
-schwach gedämpftes Übertragungsverhalten der aktuellen Reglerauslegung,
-das im Abschnitt zur Reglerparametrierung weiter untersucht werden sollte.
+Für ein PT1-Glied wird die Zeitkonstante $T$ über den Zeitpunkt bestimmt, an
+dem 63,2\,\% der gesamten Positionsänderung erreicht sind. Bei einer
+Positionsänderung von \SI{5}{\milli\meter} ergibt sich hierfür
 
-Anhand des Zeitversatzes zwischen \texttt{Target} und \texttt{istPosition}
-(Nulldurchgang jeweils beim Mittelwert zwischen Ausgangs- und Endwert)
-ergibt sich eine erste grobe Schätzung der Gesamt-Totzeit des Systems von
-rund \SI{0.8}{\second}; eine genauere Bestimmung erfolgt im nachfolgenden
-Abschnitt zur Totzeit.
+\begin{equation}
+    \SI{574}{\milli\meter}
+    + 0{,}632 \cdot \SI{5}{\milli\meter}
+    =
+    \SI{577.16}{\milli\meter}.
+\end{equation}
 
-Der Reglerausgang (\texttt{Regler}) liegt vor dem Sprung bei $\approx 0$
-und springt exakt mit dem Sollwertsprung auf seinen unteren Grenzwert von
-$-80$, an dem er für \SI{1.5}{\second} ($t=\SI{10.8}{\second}$ bis
-$\SI{12.3}{\second}$) verharrt, bevor er durch Null läuft, kurzzeitig
-positiv auf bis zu $+30$ überschwingt ($t\approx\SI{14.0}{\second}$) und
-sich anschließend wieder bei $\approx 0$ einpendelt. Die über 16
-aufeinanderfolgende Samples exakt konstante Auslenkung deutet auf eine
-reale Begrenzung (Sättigung) des Stellsignals hin, die während der starken
-initialen Korrekturbewegung aktiv wird (namensgebend für den Ordner
-\texttt{Real Sensor Test with Saturation} dieser Messung).
-% TODO: Zusammenhang zwischen dieser Stellgrößen-Sättigung und einer
-% möglichen Totzone des Reglers noch zu klären (Rücksprache im Team
-% ausstehend).
+Aus der gemessenen Sprungantwort ergibt sich näherungsweise
 
-Die Sensor-Messung selbst pendelt sich nach dem Sprung mit einer
-Restabweichung von nur \SI{-0.1}{\centi\meter} praktisch exakt auf den
-neuen Sollwert von \SI{20}{\centi\meter} ein.
+\begin{equation}
+    T \approx \SI{0.08}{\second}.
+\end{equation}
+
+Damit kann der verzögerungsfreie Anteil der Strecke näherungsweise durch
+
+\begin{equation}
+    G_0(s) =
+    \frac{1}{0{,}08s + 1}
+\end{equation}
+
+beschrieben werden. Die Totzeit wird im folgenden Abschnitt separat bestimmt.
 
 \subsubsection{Totzeit}
+
+Zur Bestimmung der Totzeit wurde derselbe Positionssprung von
+\SI{574}{\milli\meter} auf \SI{579}{\milli\meter} verwendet. Als
+Sprungzeitpunkt $t_0$ wurde die Änderung des Sollwertes definiert. Der
+Reaktionszeitpunkt $t_1$ wurde erreicht, sobald die über
+\texttt{\$POS\_ACT} erfasste Istposition um mindestens
+\SI{0.1}{\milli\meter} von ihrer Ausgangsposition abwich und diese Abweichung
+für mindestens drei aufeinanderfolgende Abtastschritte bestehen blieb.
+
+Die Totzeit ergibt sich damit zu
+
+\begin{equation}
+    T_t = t_1 - t_0.
+\end{equation}
+
+Abbildung~\ref{fig:sprungantwort_totzeit} zeigt beispielhaft Messung 5, bei
+der eine Totzeit von $T_t=\SI{360}{\milli\second}$ bestimmt wurde.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{images/sprungantwort_soll_ist.jpeg}
+    \caption{Beispielhafte Bestimmung der Totzeit zwischen Z-Soll- und
+    Z-Istposition für Messung 5 ($T_t=\SI{360}{\milli\second}$).}
+    \label{fig:sprungantwort_totzeit}
+\end{figure}
+
+Der Versuch wurde fünfmal unter vergleichbaren Bedingungen wiederholt.
+Dabei wurden Totzeiten von \SI{340}{\milli\second},
+\SI{300}{\milli\second}, \SI{290}{\milli\second},
+\SI{330}{\milli\second} und \SI{360}{\milli\second} bestimmt.
+Der arithmetische Mittelwert beträgt \SI{324}{\milli\second}. Für die weitere
+Modellierung wird daher
+
+\begin{equation}
+    T_t \approx \SI{0.324}{\second}
+\end{equation}
+
+verwendet. Bei einer Abtastzeit von $T_s=\SI{10}{\milli\second}$ entspricht
+dies näherungsweise 32 Abtastschritten.
+
+Zusammen mit den in Abschnitt~4.5.1 bestimmten Parametern ergibt sich damit
+das angenäherte Streckenmodell
+
+\begin{equation}
+    G_S(s) =
+    \frac{1}{0{,}08s + 1}
+    e^{-0{,}324s}.
+\end{equation}
 
 \subsubsection{Reglerparametrierung}
