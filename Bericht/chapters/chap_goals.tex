@@ -5,18 +5,22 @@
 \label{sec:ausgangslage}
 
 Die Zelle verfügt bereits über zwei getrennte, unabhängig voneinander
-entstandene Anbindungen an externe Rechner (vgl.\ Abschnitt~\ref{sec:sdt}):
-eine MATLAB-seitige Bahnvorgabe/-auslesung über \ac{kvp} (Friesen) sowie eine
+entstandene Anbindungen an externe Rechner (vgl.\ Abschnitt~\ref{sec:sdt}).
+Eine MATLAB-seitige Bahnvorgabe/-auslesung über \ac{kvp} (Friesen) sowie eine
 Sensorintegration über \ac{ethercat} (Hübel). Beide Anbindungen laufen aktuell
 getrennt voneinander und ohne harte Echtzeitgarantie. Laut Aufgabenstellung
 ist das erklärte Ziel von Thema~2, diese beiden Stränge in eine gemeinsame,
 deterministisch getaktete QUARC/Simulink-Struktur zu überführen und um eine
 kraftgeregelte Anwendung zu erweitern.
 
+Im weiteren Projektverlauf wurde anstelle des ursprünglich vorgesehenen
+Kraftsensors ein Ultraschallsensor verwendet. Die
+Regelungsapplikation wurde dementsprechend als Abstandsregelung umgesetzt.
+
 \subsection{Anforderungen}
 \label{sec:anforderungen}
 
-Aus der Aufgabenstellung (Thema2\_KUKA\_Zelle.pdf) ergeben sich vier
+Aus der ursprünglichen Aufgabenstellung ergeben sich vier
 Kernanforderungen:
 
 \begin{enumerate}
@@ -33,14 +37,5 @@ Kernanforderungen:
     Abschnitt~\ref{sec:baseline}) als auch für die neue QUARC-Anbindung.
     \item \textbf{Regelungsapplikation:} Auf Basis der deterministischen
     Anbindung und der Kraftmessung ist eine reaktive, totzeitkompensierte
-    Regelungsapplikation umzusetzen (Beispiel laut Aufgabenstellung:
-    kraftbegrenztes Greifen).
+    Regelungsapplikation umzusetzen.
 \end{enumerate}
-
-Der Laborbericht wird als gemeinsamer Gruppenbericht verfasst; individuelle
-Beiträge sind zu kennzeichnen (in dieser Version noch nicht final
-zugeordnet, siehe TODO in Abschnitt~\ref{sec:einleitung}). Sämtliche
-Quell-/Modelldateien sind zusätzlich als ZIP oder Filesharing-Link
-einzureichen. Als Ansprechpartner sind laut Aufgabenstellung M.\ Vanek
-(\texttt{michael.vanek@fra-uas.de}) und K.\ Schmidt
-(\texttt{schmidtk@fra-uas.de}) genannt.

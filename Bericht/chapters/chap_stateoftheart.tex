@@ -74,11 +74,13 @@ Punkt abgefahren, sondern bereits vorher auf die nächste Bewegung
 geringe Restdistanz (\texttt{dmin}) an den Zwischenpunkten der Quadratbahn
 (siehe Abschnitt~\ref{sec:baseline}).
 
+\begin{comment}
 \subsection{Anbindungsmöglichkeiten an externe Steuerungssysteme}
 \label{sec:anbindung}
 
 Für die Anbindung externer Rechner an die KR~C4 stehen grundsätzlich
 feldbusbasierte und TCP/IP- bzw.\ UDP-basierte Lösungen zur Verfügung.
+
 
 \subsubsection{Feldbusvergleich}
 
@@ -128,10 +130,31 @@ weitere Anbindungsmöglichkeiten über \ac{tcpip} bzw.\ \ac{udp}:
     Windows-Seite der KR~C4 läuft und lesenden sowie schreibenden Zugriff auf
     \ac{krl}-Variablen erlaubt (siehe Abschnitt~\ref{sec:friesen}).
 \end{itemize}
+\end{comment}
 
 \subsection{Vorarbeit: MATLAB/KVP-Anbindung (Friesen, 2021)}
 \label{sec:friesen}
 
+Die vorliegende Arbeit baut auf der von Friesen~\cite{friesen2021}
+entwickelten Kommunikationsanbindung zwischen einem externen PC und
+der KUKA KR~C4 auf. Für die Kommunikation werden daher ebenfalls
+Ethernet als physikalische Verbindung und \ac{kvp} als
+Kommunikationsschnittstelle verwendet. Eine alternative
+Kommunikationstechnologie wird im Rahmen dieser Arbeit nicht betrachtet,
+da die bestehende Implementierung und deren Erweiterung im Mittelpunkt
+stehen.
+
+Friesen~\cite{friesen2021} implementierte eine Anbindung zwischen
+MATLAB und der KR~C4 über \ac{kvp}. Die KR~C4 besitzt neben der
+echtzeitfähigen VxWorks-Seite eine eingebettete Windows-Umgebung, auf
+der der \ac{kvp}-Serverdienst läuft. Die Kommunikation zwischen der
+Windows-Umgebung und der VxWorks-Seite erfolgt intern über die von KUKA
+bereitgestellte CrossComm-Schnittstelle. \ac{kvp} nimmt über
+\ac{tcpip} byte-codierte Lese- und Schreibanfragen auf
+\ac{krl}-Variablen entgegen und beantwortet diese mit den
+entsprechenden Werten (Abbildung~\ref{fig:kvp_datenfluss}).
+
+\begin{comment}
 Friesen~\cite{friesen2021} implementierte in seiner Masterarbeit eine
 Anbindung zwischen MATLAB und der KR~C4 über \ac{kvp}. Die KR~C4 besitzt
 neben der echtzeitfähigen VxWorks-Seite eine eingebettete Windows-Umgebung,
@@ -140,6 +163,7 @@ Seiten erfolgt intern über die von KUKA bereitgestellte
 CrossComm-Schnittstelle. \ac{kvp} nimmt über \ac{tcpip} byte-codierte
 Lese-/Schreibanfragen auf \ac{krl}-Variablen entgegen und beantwortet sie mit
 den entsprechenden Werten (Abbildung~\ref{fig:kvp_datenfluss}).
+\end{comment}
 
 \begin{figure}[H]
     \centering
@@ -164,16 +188,19 @@ den entsprechenden Werten (Abbildung~\ref{fig:kvp_datenfluss}).
 \end{figure}
 
 In seiner Bewertung (Kap.~7.1, Tabelle~10) stuft Friesen die meisten
-Bewegungssteuerungs- und Rückgabewert-Anforderungen als erfüllt ein; das
+Bewegungssteuerungs- und Rückgabewert-Anforderungen als erfüllt ein.
+Das
 Kriterium \enquote{Echtzeitverhalten} wird jedoch nur als
 \enquote{teilweise erfüllt} bewertet, da die Windows-seitige Anbindung keine
 garantierten Zykluszeiten liefert. Dies deckt sich mit der im Rahmen dieses
-Projekts durchgeführten Baseline-Messung (Abschnitt~\ref{sec:baseline}): Bei
+Projekts durchgeführten Baseline-Messung (Abschnitt~\ref{sec:baseline}).
+Bei
 einer vorgegebenen Mindestzykluszeit von \SI{12}{\milli\second} (dem
 Aktualisierungsintervall der \ac{krl}-Variablen, vgl.\
 Friesen~\cite{friesen2021}, Kap.~4.1/4.6) ergibt sich in der Praxis ein
 gepoolter Median von \SI{16.6}{\milli\second} mit Ausreißern bis über
-\SI{140}{\milli\second}; also eine deutliche, unvorhersehbare Streuung
+\SI{140}{\milli\second}.
+Dies ist eine deutliche, unvorhersehbare Streuung
 oberhalb der Vorgabe.
 
 \subsection{Vorarbeit: Sensorintegration (Hübel, 2021/22)}
@@ -182,13 +209,13 @@ oberhalb der Vorgabe.
 Hübel~\cite{huebel2022} realisierte in seiner Projektarbeit eine
 automatisierte Ausschankvorrichtung mit gravimetrischer bzw.\
 Füllstands-basierter Steuerung. Für die Füllstandsmessung vergleicht er
-(Kap.~3.2) grundsätzlich hydrostatische sowie elektromagnetische/
+(Kap.~3.2) grundsätzlich hydrostatische sowie elektromagnetische und
 Ultraschall-basierte Messprinzipien. Die Ansteuerung der eigentlichen
 Ausschankbewegung erfolgt über \ac{krl}-\ac{ptp}/\ac{lin}/\ac{circ}-Befehle
 sowie \texttt{PULSE}/\texttt{INTERRUPT}-Konstrukte zur ereignisgesteuerten
 Reaktion auf Sensorsignale (Kap.~4.6/4.7).
 
-Laut Aufgabenstellung (Thema2\_KUKA\_Zelle.pdf) wurde die externe Sensorik in
+Laut Aufgabenstellung wurde die externe Sensorik in
 diesem Vorprojekt über \ac{ethercat} an die Zelle angebunden. Die genaue
 Verdrahtung bzw.\ Konfiguration dieser \ac{ethercat}-Anbindung ist in
 Hübels Bericht an anderer Stelle (Kap.~4, Implementierung) beschrieben.
@@ -197,11 +224,10 @@ Hübels Bericht an anderer Stelle (Kap.~4, Implementierung) beschrieben.
 \subsection{Werkzeuge zur Realisierung: QUARC und die Quanser-Blockbibliothek}
 \label{sec:quarc_bloecke}
 
-Für die Umsetzung von Thema~2 wird ergänzend zu den in
-Abschnitt~\ref{sec:anbindung} vorgestellten Anbindungsmöglichkeiten
-\textbf{QUARC} (Quanser) als Echtzeit-Zielsystem für Simulink eingesetzt.
+Für die Umsetzung des Projekts wird \textbf{QUARC} (Quanser) als Echtzeit-Zielsystem für Simulink eingesetzt.
 Der Ablauf entspricht dabei dem bereits aus den Laborversuchen dieses
-Moduls bekannten Workflow: Das Simulink-Blockschaltbild wird über den
+Moduls bekannten Workflow.
+Das Simulink-Blockschaltbild wird über den
 Simulink~Coder in C-Code übersetzt, mit Microsoft Visual Studio zu einem
 ausführbaren Programm kompiliert und anschließend von QUARC auf den
 Echtzeitkern der Zielmaschine übertragen, wo es deterministisch getaktet
@@ -246,7 +272,8 @@ mitverursacht.
 Zur ereignisgesteuerten Ablaufsteuerung (Initialisierung, Modusumschaltung,
 Bewegungsfreigabe) enthalten die Modelle zusätzlich ein
 \textbf{Stateflow}-Chart. Stateflow ergänzt die datenflussorientierte
-Simulink-Blockdiagrammebene um eine zustandsbasierte Beschreibung: Zustände
+Simulink-Blockdiagrammebene um eine zustandsbasierte Beschreibung. 
+Zustände
 und Transitionen werden explizit modelliert und über Guard-Bedingungen
 (z.\,B.\ Schwellwert- oder Tastendruck-Signale) sowie aufgerufene
 MATLAB-Function-Blöcke zum Aufbau der TCP-Nachrichten aktiviert.
@@ -254,18 +281,15 @@ MATLAB-Function-Blöcke zum Aufbau der TCP-Nachrichten aktiviert.
 \subsubsection{Totzeitkompensation nach Smith}
 \label{sec:smith}
 
-Für die spätere totzeitkompensierte Regelungsapplikation (Anforderung~4,
-siehe Abschnitt~\ref{sec:anforderungen}) enthält eine der beiden
-bereitgestellten Modellvarianten zusätzlich einen \textbf{Smith-Prädiktor}.
-Dessen Grundidee ist es, die Regelstrecke zusätzlich durch ein
-Streckenmodell ohne Totzeit nachzubilden (Prädiktion \texttt{zHatOhne}) und
-dieselbe Prädiktion zusätzlich durch ein Totzeitmodell zu verzögern
-(\texttt{zHatMit}), um sie mit dem real gemessenen, totzeitbehafteten
-Sensorsignal vergleichbar zu machen. Die Differenz aus gemessenem Signal
-und verzögerter Prädiktion wird als Korrekturterm auf die totzeitfreie
-Prädiktion \texttt{zHatOhne} aufaddiert und ergibt das an den Regler
-zurückgeführte, korrigierte Signal \texttt{Sensor\_pred}
-(Abbildung~\ref{fig:smith}).
+Im Rahmen eines Zwischentests zur Totzeitkompensation wurde eine
+Modellvariante zusätzlich um einen Smith-Prädiktor erweitert.
+
+Der Smith-Prädiktor verwendet ein internes Streckenmodell, um den Einfluss
+einer vorhandenen Totzeit auf die Regelung zu reduzieren. Hierzu wird das
+Streckenverhalten ohne und mit nachgebildeter Totzeit betrachtet und daraus
+ein korrigiertes Rückführsignal für den Regler gebildet
+\cite{NormeyRico2022}. Das grundlegende Prinzip ist in
+Abbildung~\ref{fig:smith} dargestellt.
 
 \begin{figure}[H]
     \centering
@@ -281,39 +305,34 @@ zurückgeführte, korrigierte Signal \texttt{Sensor\_pred}
         \node[box] (model) at (2.2,-1.6) {Streckenmodell\\(ohne Totzeit)};
         \node[box] (delay) at (5.2,-1.6) {Totzeitmodell};
 
-        \draw[conn] (-1.6,0) -- (s1) node[midway, above, font=\tiny]{Sollwert};
+        \draw[conn] (-1.6,0) -- (s1)
+        node[midway, above, font=\tiny]{Sollwert};
+
         \draw[conn] (s1) -- (reg);
         \draw[conn] (reg) -- (strecke);
         \draw[conn] (reg.south) -- (model.north);
-        \draw[conn] (model) -- (delay) node[midway, above, font=\tiny]{$\hat{z}_{\text{ohne}}$};
-        \draw[conn] (model.west) -- (spred.east) node[midway, above, font=\tiny]{$+$};
-        \draw[conn] (delay.south) -- (5.2,-2.3) -- (0,-2.3) -- (spred.south) node[near start, below, font=\tiny]{$-\ \hat{z}_{\text{mit}}$};
-        \draw[conn] (strecke.east) -- (7.0,0) -- (7.0,-3.2) -- (-0.35,-3.2) -- (spred.west) node[near start, right, font=\tiny]{$-$\ Sensor$_{\text{real}}$};
-        \draw[conn] (spred.north) -- (s1.south) node[midway, right, font=\tiny]{Sensor$_{\text{pred}}$};
+
+        \draw[conn] (model) -- (delay)
+        node[midway, above, font=\tiny]{$\hat{z}_{\text{ohne}}$};
+
+        \draw[conn] (model.west) -- (spred.east)
+        node[midway, above, font=\tiny]{$+$};
+
+        \draw[conn] (delay.south) -- (5.2,-2.3) -- (0,-2.3) -- (spred.south)
+        node[near start, below, font=\tiny]{$-\ \hat{z}_{\text{mit}}$};
+
+        \draw[conn] (strecke.east) -- (7.0,0) -- (7.0,-3.2) -- (-0.35,-3.2) -- (spred.west)
+        node[near start, right, font=\tiny]{$-$\ Sensor$_{\text{real}}$};
+
+        \draw[conn] (spred.north) -- (s1.south)
+        node[midway, right, font=\tiny]{Sensor$_{\text{pred}}$};
     \end{tikzpicture}
-    \caption{Struktur eines Smith-Prädiktors, mit den Signalbezeichnungen der
-    bereitgestellten Simulink-Modellvariante \texttt{smith} (eigene
-    Darstellung): \texttt{zHatOhne}/\texttt{zHatMit} entsprechen der
-    Streckenmodell-Prädiktion ohne bzw.\ mit nachgebildeter Totzeit,
-    \texttt{Sensor\_pred} dem an den Regler zurückgeführten korrigierten
-    Prädiktionssignal.}
+
+    \caption{Grundstruktur eines Smith-Prädiktors zur Totzeitkompensation
+    in Anlehnung an \cite{NormeyRico2022}.}
     \label{fig:smith}
 \end{figure}
 
-Die konkrete experimentelle Umsetzung des Smith-Prädiktors im entwickelten
-Simulink-Modell wird in Abschnitt~4.5.4 beschrieben. Die Ergebnisse der
-praktischen Versuche werden anschließend in Kapitel~5 bewertet.
-
-\subsection{Ableitung für Thema 2}
-\label{sec:ableitung}
-
-Aus den beiden Vorarbeiten ergibt sich für Thema~2 folgender Handlungsbedarf:
-Die MATLAB/KVP-Anbindung (Abschnitt~\ref{sec:friesen}) liefert zwar
-funktional die benötigte Bahn- und Positionsdaten-Kommunikation, jedoch ohne
-deterministisches Zeitverhalten; die durchgeführte Baseline-Messung
-(Abschnitt~\ref{sec:baseline}) belegt dies quantitativ und dient als
-Vergleichsmaßstab für die spätere QUARC-Umsetzung. Die
-\ac{ethercat}-basierte Sensorintegration von Hübel (Abschnitt~\ref{sec:huebel})
-zeigt, dass die Zelle grundsätzlich für echtzeitfähige Feldbus-Anbindungen
-externer Sensorik vorbereitet ist, worauf die geplante
-QUARC-I/O-Anbindung des Kraftsensors (Anforderung~2) aufbauen kann.
+Die konkrete Umsetzung des im Zwischentest verwendeten Smith-Prädiktors
+wird in Abschnitt~4.5.4 beschrieben. Die Ergebnisse der Versuche werden
+in Kapitel~5 bewertet.

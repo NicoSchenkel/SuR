@@ -12,29 +12,28 @@ Die Trainingszelle \textit{KUKA ready2\_educate\_pro} des Fachbereichs 2 wird im
 Rahmen der Lehrveranstaltung \enquote{Simulation und Regelung} für praxisnahe
 Projekte im Studiengang Mechatronik und Robotik eingesetzt. Zwei vorangegangene
 Abschluss- bzw.\ Projektarbeiten haben die Zelle bereits für eigene Zwecke
-angebunden: Friesen~\cite{friesen2021} realisierte eine Verbindung zwischen
+angebunden. Friesen~\cite{friesen2021} realisierte eine Verbindung zwischen
 MATLAB und der KR~C4-Steuerung über den \ac{kvp}-Dienst, um Bahnen aus MATLAB
 heraus vorzugeben und Ist-Positionen auszulesen. Hübel~\cite{huebel2022}
 integrierte für eine automatisierte Ausschankvorrichtung zusätzliche externe
 Sensorik (Füllstandsmessung) in die Zelle.
 
 Beide Vorarbeiten haben gemeinsam, dass die Kommunikation zwischen PC und
-Steuerung nicht echtzeitfähig im eigentlichen Sinn ist: Der MATLAB/KVP-Pfad
-läuft über eine zyklisch pollende TCP/IP-Verbindung unter Windows ohne
-garantierte Zykluszeiten, wie die im Rahmen dieses Projekts durchgeführte
-Baseline-Messung bestätigt (siehe Abschnitt~\ref{sec:baseline}). Für die im
-Thema~2 geforderte kraftgeregelte, reaktive Anwendung reicht dieser
-Kommunikationspfad nicht aus; eine Kraftregelung mit kurzer Totzeit setzt
+Steuerung nicht echtzeitfähig im eigentlichen Sinn ist. 
+Der MATLAB/KVP-Pfad läuft über eine zyklisch pollende TCP/IP-Verbindung unter Windows ohne garantierte Zykluszeiten, wie die im Rahmen dieses Projekts durchgeführte Baseline-Messung bestätigt (siehe Abschnitt~\ref{sec:baseline}). 
+Für die im Thema~2 geforderte kraftgeregelte, reaktive Anwendung reicht dieser
+Kommunikationspfad nicht aus.
+Eine Kraftregelung mit kurzer Totzeit setzt
 deterministische, garantierte Zykluszeiten voraus.
 
 Ziel dieses Projekts ist es daher, die bestehende MATLAB/KVP-Anbindung auf
 eine QUARC-basierte Simulink-Struktur mit deterministischem Abtastverhalten
 zu portieren, einen Kraftsensor hard- und softwareseitig zu integrieren, die
 End-to-End-Systemlatenzen des neuen Aufbaus zu erfassen und darauf
-aufbauend eine totzeitkompensierte Regelungsapplikation zu realisieren. Der
-vorliegende Bericht beschreibt in Abschnitt~\ref{sec:aufgabenstellung} die
+aufbauend eine totzeitkompensierte Regelungsapplikation zu realisieren. 
+Der vorliegende Bericht beschreibt in Abschnitt~\ref{sec:aufgabenstellung} die
 konkrete Aufgabenstellung, in Abschnitt~\ref{sec:sdt} den Stand der Technik
 auf Basis der beiden Vorarbeiten sowie der Zellkomponenten, in
-Abschnitt~\ref{sec:implementierung} die bisherige Umsetzung inklusive der
+Abschnitt~\ref{sec:implementierung} die Umsetzung inklusive der
 MATLAB/KVP-Baseline-Messung und in Abschnitt~\ref{sec:fazit} eine
 zusammenfassende Bewertung und den weiteren Ausblick.

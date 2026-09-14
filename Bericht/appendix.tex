@@ -1,0 +1,154 @@
+\appendix
+\includepdfset{pages=-,pagecommand=\thispagestyle{plain}}
+
+\section{Anleitung zum Aufbau der Kommunikation mit der KUKA-Zelle}
+\label{sec:anleitung_kuka_kommunikation}
+
+\subsection{Ziel}
+
+Ziel dieser Anleitung ist der Aufbau einer TCP/IP-Verbindung zwischen
+dem Labor-PC und der KUKA-Zelle. Über diese Verbindung können
+Steuerbefehle aus dem auf dem Labor-PC ausgeführten Simulink-Modell an
+die KUKA-Steuerung übertragen werden.
+
+Die verwendete Implementierung basiert auf der Arbeit von Friesen
+\cite{friesen2021} und verwendet insbesondere das dort beschriebene
+KUKA-Skript zur Kommunikation mit der Robotersteuerung.
+
+\subsection{Hardwareseitiger Anschluss}
+
+Zunächst werden der Labor-PC und die KUKA-Zelle über ein
+Ethernet-Kabel miteinander verbunden. Hierfür muss der dafür
+vorgesehene Ethernet-Anschluss der KUKA-Steuerung verwendet werden
+(\texttt{X66}). Am Labor-PC kann ein beliebiger freier Ethernet-Port
+verwendet werden.
+
+\textbf{Hinweis:} Die Verwendung des korrekten Ethernet-Anschlusses an
+der KUKA-Steuerung ist erforderlich, da andernfalls keine
+Netzwerkverbindung zwischen den beiden Geräten aufgebaut werden kann.
+
+\subsection{Konfiguration der Netzwerkverbindung}
+
+Die Netzwerkkonfiguration der KUKA-Steuerung kann über das SmartPad
+überprüft werden. Hierzu wird im Menü
+\texttt{Einstellungen -> Inbetriebnahme -> Netzwerkkonfiguration}
+die konfigurierte IP-Adresse und Subnetzmaske angezeigt. Für die
+verwendete KUKA-Zelle sind diese Werte
+
+\begin{center}
+\texttt{IP-Adresse: 192.168.41.64}\
+\texttt{Subnetzmaske: 255.255.0.0}
+\end{center}
+
+hinterlegt.
+
+Die bestehende Netzwerkkonfiguration sollte grundsätzlich nicht ohne
+triftigen Grund verändert werden, da Änderungen an der
+Netzwerkkonfiguration weitere Auswirkungen auf die Kommunikation der
+KUKA-Steuerung haben können.
+
+In der Netzwerkkonfiguration kann außerdem überprüft werden, welche
+Ports für die TCP/IP-Kommunikation freigegeben bzw. konfiguriert sind.
+Für die verwendete Kommunikationsimplementierung muss insbesondere
+der Port \texttt{7000} verfügbar sein.
+
+Anschließend wird die Netzwerkkonfiguration des Labor-PCs angepasst.
+Hierzu wird der Ethernet-Adapter ausgewählt, über den die Verbindung
+zur KUKA-Zelle hergestellt wurde. Dem Labor-PC wird eine IP-Adresse
+im selben IP-Subnetz wie der KUKA zugewiesen. Bei Verwendung der oben
+genannten Konfiguration kann beispielsweise
+
+\begin{center}
+\texttt{IP-Adresse: 192.168.41.1}\
+\texttt{Subnetzmaske: 255.255.0.0}
+\end{center}
+
+verwendet werden.
+
+Die Verbindung kann anschließend über die Eingabeaufforderung (CMD)
+mit folgendem Befehl überprüft werden:
+
+\begin{verbatim}
+ping 192.168.41.64
+\end{verbatim}
+
+Erhält der Labor-PC eine Antwort von der KUKA-Steuerung, sind beide
+Geräte auf IP-Ebene miteinander erreichbar. Ein erfolgreicher
+Ping bestätigt jedoch noch nicht, dass die für die Anwendung
+benötigte TCP-Verbindung über Port \texttt{7000} funktioniert.
+
+\subsection{Start der KUKA-Kommunikation}
+
+Für den Aufbau der eigentlichen Kommunikation muss zunächst
+\texttt{KUKAVARPROXY.exe} auf der KUKA-Steuerung gestartet werden.
+Hierfür wird am SmartPad in den Admin-Modus gewechselt.
+Anschließend wird über
+
+\begin{center}
+\texttt{Einstellungen -> Inbetriebnahme -> Service -> HMI minimieren}
+\end{center}
+
+die KUKA-Anwendung minimiert. Dieser Schritt ist nur mit den
+erforderlichen Administratorrechten möglich.
+
+Nach dem Minimieren der HMI wird \texttt{KUKAVARPROXY.exe} über das
+Desktop-Symbol gestartet. Das Programm stellt den TCP/IP-Server für
+die Kommunikation bereit und zeigt den Verbindungsstatus des Clients
+an. Für die Bedienung der Windows-Oberfläche der KUKA-Steuerung wird
+eine externe Maus benötigt.
+
+Sollte sich \texttt{KUKAVARPROXY.exe} nicht auf der KUKA-Steuerung
+befinden, kann das Programm über einen USB-Stick übertragen werden.
+Hierfür ist die entsprechende Anleitung von Friesen zu beachten.
+
+Nach dem Start von \texttt{KUKAVARPROXY.exe} wird zur
+KUKA-Anwendung zurückgekehrt. Anschließend wird das KRL-Programm im
+Ordner \texttt{Driver/} ausgewählt und gestartet. Dieses Programm
+basiert ebenfalls auf der Implementierung von Friesen und muss
+während der Kommunikation aktiv sein, damit die von der externen
+Anwendung empfangenen Befehle von der KUKA-Steuerung verarbeitet
+werden können.
+
+\subsection{Verbindungsaufbau mit dem Simulink-Modell}
+
+Auf dem Labor-PC wird anschließend das entsprechende Simulink-Modell
+geöffnet und die Simulation über QUARC gestartet. Für die
+Kommunikation mit der KUKA-Steuerung wird im Simulink-Modell der
+Block \texttt{Stream Client} verwendet. Dieser übernimmt die Rolle
+des TCP-Clients, während \texttt{KUKAVARPROXY} auf der KUKA-Steuerung
+als TCP-Server fungiert.
+
+Der Ausgang \texttt{State} des Blocks \texttt{Stream Client} gibt den
+aktuellen Verbindungsstatus an. Wechselt dieser auf den Wert
+\texttt{2}, wurde die Verbindung zwischen Labor-PC und KUKA-Steuerung
+erfolgreich hergestellt. Der Verbindungsstatus kann zusätzlich im
+Fenster von \texttt{KUKAVARPROXY.exe} überprüft werden.
+
+Optional kann anschließend der Ultraschallsensor am Greifer
+angebracht werden. Im Fenster \glqq Sollwert\grqq{} kann die
+gewünschte Distanz des Greifers zum Boden vorgegeben werden. Durch
+Betätigen des Tasters \glqq Button\grqq{} wird die
+Bewegungssequenz gestartet.
+
+\subsection{Hinweise zur Fehlerbehebung}
+
+Falls keine Verbindung aufgebaut werden kann, sollten zunächst die
+folgenden Punkte überprüft werden:
+
+\begin{itemize}
+\item Ist das Ethernet-Kabel korrekt mit dem vorgesehenen
+KUKA-Anschluss \texttt{X66} verbunden?
+\item Befinden sich Labor-PC und KUKA im selben IP-Subnetz?
+\item Sind IP-Adresse und Subnetzmaske korrekt eingestellt?
+\item Ist die KUKA-Steuerung über \texttt{ping} erreichbar?
+\item Ist der TCP-Port \texttt{7000} auf der KUKA-Steuerung
+verfügbar?
+\item Läuft \texttt{KUKAVARPROXY.exe}?
+\item Ist das KRL-Programm im Ordner \texttt{Driver/} gestartet?
+\item Läuft das Simulink-Modell über QUARC und ist der
+\texttt{Stream Client} aktiv?
+\end{itemize}
+
+Vor dem Start der Kommunikations- und Bewegungssequenz ist
+sicherzustellen, dass sich der Roboter in einer sicheren Situation
+befindet und keine unerwartete Bewegung zu erwarten ist.

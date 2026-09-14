@@ -18,11 +18,11 @@ messtechnisch charakterisiert, bevor sie durch die QUARC-Struktur ersetzt
 wird. Dazu wurde eine Kopie von Friesens Bahnskript
 (\texttt{Bahnskript\_Messung.m}) um Timing-Instrumentierung ergänzt und eine
 feste Quadratbahn (5 Wegpunkte, \ac{ptp}, $v=\SI{15}{\percent}$) fünfmal
-identisch abgefahren (\texttt{m1}--\texttt{m5}, 24.08.2026). Auswertung und
-Abbildungen erzeugt das MATLAB-Skript \texttt{auswertung\_baseline.m} (siehe
-Anhang bzw.\ eingereichte Quelldateien); alle Zeitangaben stammen aus
-\texttt{times.cycleTime} sowie den Teilzeiten \texttt{times.polltime},
-\texttt{times.readtime}, \texttt{times.writetime} und \texttt{times.waittime}.
+identisch abgefahren (\texttt{m1}--\texttt{m5}, 24.08.2026). %Auswertung und
+%Abbildungen erzeugt das MATLAB-Skript \texttt{auswertung\_baseline.m} (siehe
+%Anhang bzw.\ eingereichte Quelldateien); alle Zeitangaben stammen aus
+%\texttt{times.cycleTime} sowie den Teilzeiten \texttt{times.polltime},
+%\texttt{times.readtime}, \texttt{times.writetime} und \texttt{times.waittime}.
 
 \subsubsection{Zykluszeit}
 
@@ -51,7 +51,7 @@ undefinierten Sample pro Lauf).
 \end{table}
 
 Die Steuerung aktualisiert ihre \ac{krl}-Variablen nur alle
-\SI{12}{\milli\second} (vgl.\ Abschnitt~\ref{sec:friesen}); das Messskript
+\SI{12}{\milli\second} (vgl.\ Abschnitt~\ref{sec:friesen}). Das Messskript
 wartet entsprechend mindestens diese Zeit pro Zyklus ab. Der gepoolte Median
 liegt mit \SI{16.6}{\milli\second} rund \SI{4.5}{\milli\second} über dieser
 Vorgabe. Da die gemessenen Teilzeiten (Abschnitt~\ref{sec:baseline_teilzeiten})
@@ -105,7 +105,7 @@ alle 5 Läufe in ihre Teilzeiten auf.
     \label{fig:baseline_teilzeiten}
 \end{figure}
 
-Bei der Peak-Analyse lassen sich zwei Ursachen unterscheiden: Wiederkehrende
+Bei der Peak-Analyse lassen sich zwei Ursachen unterscheiden.  Wiederkehrende
 Spitzen von ca.\ \SIrange{65}{70}{\milli\second} treten in allen 5 Läufen an
 denselben Zeitpunkten auf, die exakt mit den 4 Segmentübergängen der
 Quadratbahn zusammenfallen: an diesen Stellen bleiben die gemessenen
@@ -114,7 +114,8 @@ Teilzeiten unauffällig klein, sodass die Verzögerung im MATLAB-Loop selbst
 Vereinzelte Extremwerte (\SI{132}{\milli\second} in Run~1,
 \SI{143}{\milli\second} in Run~3) zeigen sich dagegen direkt in
 \texttt{polltime}/\texttt{readtime} und deuten auf echte, seltene
-\ac{tcpip}-Aussetzer hin; ein Effekt, der auch mit einer deterministischen
+\ac{tcpip}-Aussetzer hin.
+Die ist ein Effekt, der auch mit einer deterministischen
 QUARC-Anbindung nicht verschwinden wird, solange \ac{kvp}/Windows im
 Kommunikationspfad verbleiben.
 
@@ -133,12 +134,14 @@ und über alle 5 Läufe praktisch identisch (Abweichungen $< \SI{0.001}{\milli\m
     \label{fig:baseline_bahn}
 \end{figure}
 
+\begin{comment}
 \subsubsection{Einordnung als Baseline}
 
 Zykluszeit-Verteilung, Teilzeiten-Aufschlüsselung, Peak-Ursachen und
 Bahn-Genauigkeit dieser Messung bilden die MATLAB/KVP-Baseline aus
 Anforderung~3 und dienen als Vergleichsmaßstab für die spätere
 QUARC-Implementierung.
+\end{comment}
 
 \subsection{Zykluszeitmessung der QUARC/ Simulink-Anbindung}
 \label{sec:quarc_zykluszeit}
@@ -151,24 +154,20 @@ Anbindung die Bahnkommandos funktional reproduzieren kann, ohne dass
 Sensorik oder Regelung die Untersuchung beeinflussen. Gleichzeitig wurde
 die Zuverlässigkeit des QUARC-Modelltakts untersucht.
 
-Das verwendete Simulink-Modell (\texttt{SuR\_Projekt\_Wegpunkt\_v3.slx})
-sendet die Bahnsollwerte PC-seitig deterministisch über den
+Das verwendete Simulink-Modell sendet die Bahnsollwerte PC-seitig deterministisch über den
 QUARC-Echtzeitkern, wartet jedoch in dieser Ausbaustufe nicht auf eine
-Rückmeldung des \ac{krl}-Programms auf der Steuerung (Pollen).
+Rückmeldung des \ac{krl}-Programms aus der Steuerung (Pollen).
 Die entsprechende Erweiterung war zum Zeitpunkt dieser Messung noch nicht
 abgeschlossen.
 
 Gemessen wurde daher zunächst nur, ob QUARC seinen eigenen
 Modelltakt von \SI{100}{\milli\second} während der Laufzeit einhält.
-Analog zur Baseline-Messung wurden dazu 5 identische Messläufe durchgeführt
-(\texttt{QUARC\_Messung\_1}--\texttt{5.mat}). Ausgewertet wurden die
+Analog zur Baseline-Messung wurden dazu 5 identische Messläufe durchgeführt. Ausgewertet wurden die
 geloggten Signale \texttt{cycleTime\_QUARC}, \texttt{measurementActive\_QUARC}
 und \texttt{time\_QUARC}, jeweils ohne den ersten Sample pro Lauf (kein
-vollständiger Messzyklus). Auswertung und Abbildungen erzeugt das
-MATLAB-Skript \texttt{auswertung\_quarc.m}, das die Struktur von
-\texttt{auswertung\_baseline.m} übernimmt.
+vollständiger Messzyklus).
 Anders als in dem Modell mit Sensor und Regelung werden hier nur die fünf Wegpunkte nach und nach vorgegeben und angefahren.
-Ein generierter \ac{kvr}-Befehl kann dabei folgendermaßen aussehen:
+Ein generierter \ac{krl}-Befehl kann dabei folgendermaßen aussehen:
 
 \begin{lstlisting}
 writeMsg = buildTargetMsg( ...
@@ -182,7 +181,7 @@ Die Schaltung hierfür ist in Abb.\ref{fig:timeblock} erkennbar.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\linewidth]{images/quanserTime.png}
+    \includegraphics[width=0.6\linewidth]{images/quanserTime.png}
     \caption{Schaltung zur Takterfassung in Quanser}
     \label{fig:timeblock}
 \end{figure}
@@ -214,11 +213,11 @@ sowie gepoolt über alle 1152 gültigen Samples.
     \end{tabular}
 \end{table}
 
-QUARC hält den \SI{100}{\milli\second}-Modelltakt praktisch exakt ein: Der
+QUARC hält den \SI{100}{\milli\second}-Modelltakt praktisch exakt ein. Der
 gepoolte Mittelwert liegt bei genau \SI{100.000}{\milli\second}, die
 Standardabweichung bei nur \SI{0.40}{\milli\second} (\SI{0.4}{\percent} des
 Sollwerts). Der größte Ausreißer über alle 5 Läufe weicht \SI{1.36}{\milli\second}
-vom Soll ab; kein einziger der 1152 Samples überschreitet
+vom Soll ab und kein einziger der 1152 Samples überschreitet
 \SI{1.4}{\milli\second} Abweichung.
 
 \begin{figure}[H]
@@ -230,6 +229,7 @@ vom Soll ab; kein einziger der 1152 Samples überschreitet
     \label{fig:quarc_boxplot}
 \end{figure}
 
+\begin{comment}
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.9\linewidth]{images/quarc_zykluszeit_zeitverlauf.png}
@@ -237,6 +237,7 @@ vom Soll ab; kein einziger der 1152 Samples überschreitet
     \SI{100}{\milli\second}-Referenzlinie.}
     \label{fig:quarc_zeitverlauf}
 \end{figure}
+\end{comment}
 
 \subsubsection{Vergleich zur MATLAB/KVP-Baseline}
 
@@ -262,7 +263,7 @@ takten).
     \end{tabular}
 \end{table}
 
-Das entspricht dem in Anforderung~1 erwarteten Effekt: Über QUARCs
+Das entspricht dem in Anforderung~1 erwarteten Effekt. Über QUARCs
 Echtzeitkern sendet die PC-Seite ihre Daten deterministisch, unabhängig vom
 MATLAB-Interpreter-Overhead, der die alte Anbindung dominiert hat. Die
 verbleibende Streuung von $\pm\SI{1.4}{\milli\second}$ liegt im Bereich
@@ -273,12 +274,12 @@ zu erwarten ist.
 
 Anders als bei der Baseline-Messung, wo die größten Abweichungen exakt an
 den 4 Bahnsegmentübergängen auftraten (Abschnitt~\ref{sec:baseline_teilzeiten}),
-zeigen die größten Abweichungen bei QUARC \textbf{kein} erkennbares Muster:
+zeigen die größten Abweichungen bei QUARC \textbf{kein} erkennbares Muster.
 Sie treten zu unterschiedlichen Zeitpunkten je Lauf auf, sind mal positiv,
 mal negativ, und liegen alle unter \SI{1.4}{\milli\second}. Auch zwischen
 aktiver Messphase (\texttt{measurementActive = 1}) und Vor-/Nachlauf zeigt
-sich kein messbarer Unterschied in Mittelwert oder Streuung: das Modell
-taktet durchgehend gleich.
+sich kein messbarer Unterschied in Mittelwert oder Streuung. Das Modell
+taktet also durchgehend gleich.
 
 \begin{figure}[H]
     \centering
@@ -288,6 +289,7 @@ taktet durchgehend gleich.
     \label{fig:quarc_histogramm}
 \end{figure}
 
+\begin{comment}
 Die aktive Messphase (\texttt{measurementActive = 1}) ist in allen 5 Läufen
 exakt 119 Samples lang und dauert praktisch identisch \SI{11.80}{\second}
 (Streuung $< \SI{0.5}{\milli\second}$ zwischen den Läufen), obwohl sich die
@@ -303,6 +305,7 @@ für die Reproduzierbarkeit des QUARC-Aufbaus.
     \caption{Dauer der aktiven Messphase (Bahnzeit) pro Lauf.}
     \label{fig:quarc_bahnzeit}
 \end{figure}
+\end{comment}
 
 \subsubsection{Einordnung und offene Punkte}
 
@@ -366,25 +369,29 @@ Ultraschallsensors das dynamische Regelverhalten beeinflussen.
 Ergänzend wurde die in Abschnitt~4.5.4 beschriebene Smith-Kompensation
 praktisch untersucht. Ausgangspunkt war eine Wartezeit von 30 Ticks zwischen
 zwei Positionsaktualisierungen. Mit aktivierter Smith-Kompensation wurde
-anschließend eine reduzierte Wartezeit von 20 Ticks getestet, wobei im
-durchgeführten Versuch kein instabiles Verhalten auftrat. Bei einer weiteren
-Reduktion auf 10 Ticks kam es dagegen zu starken Schwingungen, sodass der
-Versuch aus Sicherheitsgründen abgebrochen wurde.
-Abbildung~\ref{fig:smith_20ticks} zeigt den Signalverlauf des stabilen
-Versuchs mit 20 Ticks.
+anschließend eine reduzierte Wartezeit von 20 Ticks getestet. Bei einer
+weiteren Reduktion auf 10 Ticks kam es dagegen zu starken Schwingungen,
+sodass der Versuch aus Sicherheitsgründen abgebrochen wurde.
+Abbildung~\ref{fig:smith_20ticks} zeigt die Signalverläufe des Versuchs
+mit 20 Ticks.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.72\linewidth]{images/smith_20ticks.png}
-    \caption{Regelungsverhalten mit aktivierter Smith-Kompensation bei
-    einer Wartezeit von 20 Ticks zwischen den Positionsaktualisierungen.}
+    \includegraphics[width=0.75\linewidth]{images/smith_20ticks.jpg}
+    \caption{Signalverläufe beim Regelungsversuch mit aktivierter
+    Smith-Kompensation und einer Wartezeit von 20 Ticks zwischen den
+    Positionsaktualisierungen.}
     \label{fig:smith_20ticks}
 \end{figure}
+
+Die Signalverläufe zeigen, dass während der Positionsänderung die
+Smith-Korrektur aktiv wird und das System anschließend wieder einen
+stationären Zustand erreicht. Im durchgeführten Versuch trat bei einer
+Wartezeit von 20 Ticks kein instabiles Verhalten auf.
 
 Eine weitere systematische Untersuchung war anschließend nicht mehr möglich,
 da der Ultraschallsensor keine zuverlässigen Messwerte mehr lieferte.
 Daher lässt sich aus den durchgeführten Versuchen keine robuste Verbesserung
-des Gesamtsystems durch die Smith-Kompensation ableiten. Im durchgeführten
-Versuch blieb das System mit aktivierter Smith-Kompensation bei einer
-Wartezeit von 20 Ticks stabil. Die Smith-Kompensation wurde nicht in die
-final verwendete Regelungsversion übernommen.
+des Gesamtsystems durch die Smith-Kompensation ableiten. Die
+Smith-Kompensation wurde nicht in die final verwendete Regelungsversion
+übernommen.
