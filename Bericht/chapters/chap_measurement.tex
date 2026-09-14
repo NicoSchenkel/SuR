@@ -140,17 +140,24 @@ Bahn-Genauigkeit dieser Messung bilden die MATLAB/KVP-Baseline aus
 Anforderung~3 und dienen als Vergleichsmaßstab für die spätere
 QUARC-Implementierung.
 
-\subsection{Zykluszeitmessung der QUARC/Simulink-Anbindung}
+\subsection{Zykluszeitmessung der QUARC/ Simulink-Anbindung}
 \label{sec:quarc_zykluszeit}
+Ergänzend zur MATLAB/KVP-Baseline (Abschnitt~\ref{sec:baseline}) wurde das
+zeitliche Verhalten der neuen QUARC/Simulink-Anbindung untersucht.
 
-Ergänzend zur MATLAB/KVP-Baseline (Abschnitt~\ref{sec:baseline}) wurde die
-Zykluszeit-Zuverlässigkeit der neuen QUARC/Simulink-Anbindung untersucht.
+Hierzu wurde zunächst dieselbe Fünf-Punkt-Wegpunktbahn ohne Sensorregelung
+verwendet. Dadurch konnte überprüft werden, ob die neue QUARC-basierte
+Anbindung die Bahnkommandos funktional reproduzieren kann, ohne dass
+Sensorik oder Regelung die Untersuchung beeinflussen. Gleichzeitig wurde
+die Zuverlässigkeit des QUARC-Modelltakts untersucht.
+
 Das verwendete Simulink-Modell (\texttt{SuR\_Projekt\_Wegpunkt\_v3.slx})
 sendet die Bahnsollwerte PC-seitig deterministisch über den
 QUARC-Echtzeitkern, wartet jedoch in dieser Ausbaustufe nicht auf eine
 Rückmeldung des \ac{krl}-Programms auf der Steuerung (Pollen).
 Die entsprechende Erweiterung war zum Zeitpunkt dieser Messung noch nicht
 abgeschlossen.
+
 Gemessen wurde daher zunächst nur, ob QUARC seinen eigenen
 Modelltakt von \SI{100}{\milli\second} während der Laufzeit einhält.
 Analog zur Baseline-Messung wurden dazu 5 identische Messläufe durchgeführt
