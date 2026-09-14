@@ -2,94 +2,446 @@
 \label{sec:implementierung}
 
 \subsection{Neue Systemarchitektur}
-\label{sec:newarchitecture}
+\label{sec:neue-systemarchitektur}
+
+Die im Rahmen des Projekts entwickelte Struktur führt die MATLAB/KVP-Bahnvorgabe \cite{friesen2021} und die externe Sensorintegration \cite{huebel2022} in einem einzigen, unter QUARC deterministisch getakteten Simulink-Modell zusammen.
+Anstelle der bisherigen Windows-seitigen MATLAB-Skripte kompiliert QUARC das Modell auf einen echtzeitfähigen Kern, der mit festem Modelltakt läuft und damit unabhängig vom Scheduling des Windows-Interpreters arbeitet.
+
+Das Modell bildet zwei parallele, aber im selben Modelltakt ausgeführte
+Datenpfade:
+
+\begin{enumerate}
+    \item \textbf{Bahn-/Zustandskommunikation zur KR~C4} über zwei
+    unabhängige QUARC-\emph{Stream-Client}-Blöcke, die denselben TCP-Port
+    ansprechen, den bereits die \ac{kvp}-Anbindung nutzt (Port~7000).
+    Ein Block wird ausschließlich für das zyklische Lesen der Ist-Position
+    (\texttt{\$POS\_ACT}), ein zweiter ausschließlich für das Schreiben von Zustands- und Zielpositions-Kommandos verwendet.
+    \item \textbf{Sensorerfassung} über eine QUARC-I/O-Karte
+    (\texttt{HIL Initialize}/\texttt{HIL Read}), an deren Analogeingang der
+    Ultraschallsensor angeschlossen ist (Details in
+    Abschnitt~\ref{sec:sensor}).
+\end{enumerate}
+
+Beide Pfade laufen in einer zentralen Stateflow-Zustandsmaschine zusammen.
+Diese verknüpft die Bedienelemente (Start-Taster,
+Slider für Sollwerte), das gefilterte Sensorsignal und einen
+Regler-Zweig zu den auf der KR~C4 auszuführenden Bewegungs- und Modus-Kommandos und bildet damit
+gleichzeitig die Grundlage der in Abschnitt~\ref{sec:regelung}
+beschriebenen Regelungsstrategie.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.35\textwidth]{images/architektur_quarc.png}
+    \caption{Systemarchitektur der QUARC-Anbindung: Zusammenführung von
+    Bahnkommunikation (Stream Client, KVP-Protokoll) und Sensorintegration
+    (HIL-I/O) im Stateflow-Chart \texttt{Chart2} (eigene Darstellung).}
+    \label{fig:architektur-quarc}
+\end{figure}
+
+Abbildung~\ref{fig:architektur-quarc} zeigt den Datenfluss auf
+High-Level-Ebene, wobei Sensorintegration und Regelung bewusst als black
+boxes gehalten sind.
+Sie werden in den Abschnitten \ref{sec:sensor} bzw.\ \ref{sec:regelung} im Detail beschrieben.
+
+Zentrales Element ist die Stateflow-Zustandsmaschine.
+Diese erzeugt aus den Bedienelementen (Start-Taster, Slider) und aus dem
+Regelungsausgang die auszuführenden KVP-Kommandos
+(Zustands- und Zielpositions-Nachrichten).
+Sie sendet ausschließlich über den schreibenden \emph{Stream Client} an den \ac{kvp}-Server der KR~C4.
+Die Ist-Position wird über einen zweiten, rein lesenden \emph{Stream Client} vom \ac{kvp}-Server abgefragt.
+Die rückgelesene Ist-Position fließt jedoch nicht in die Zustandsmaschine selbst zurück, sondern direkt in den Regelungsblock, der daraus zusammen mit dem Sensorsignal den an die Zustandsmaschine übergebenen Sollwert bzw.\ die Korrekturgröße bildet.
+Der \ac{kvp}-Server selbst ist dabei nur die Windows-seitige Schnittstelle
+(vgl.\ Abschnitt~\ref{sec:matlab-kvp}).
+Die eigentliche Bewegungsausführung
+übernimmt das dahinterliegende \ac{krl}-Programm auf der VxWorks-Seite der
+Steuerung.
 
 \subsection{QUARC/TCP-IP-Kommunikation}
+\label{sec:quarc-tcpip}
 
 \subsubsection{Verbindung}
+\label{sec:quarc-verbindung}
+
+Die Portierung von \ac{kvp} nach QUARC (Anforderung~1) ersetzt nicht das
+\ac{kvp}-Protokoll selbst.
+Dieses bleibt unverändert aus der Vorarbeit von Friesen \cite{friesen2021}.
+Stattdessen wird die Matlab-Seite verändert.
+Anstelle der MATLAB-eigenen TCP/IP-Implementierung übernehmen zwei
+QUARC-\emph{Stream-Client}-Blöcke die Verbindung zum unveränderten
+\ac{kvp}-Server der KR~C4 auf der Adresse \texttt{tcpip://192.168.41.64:7000}.
+Beide Blöcke sind identisch parametriert:
+
+\begin{itemize}
+    \item \textbf{Datentyp/Puffer:} \texttt{uint8}, Sende-/Empfangs\-puffer\-größe
+    je \SI{1460}{\byte} (passend zur Ethernet-MTU), Byte-Reihenfolge
+    Little-Endian.
+    \item \textbf{Ausführung:} \emph{Use blocking I/O in a separate thread}
+    -- Senden und Empfangen laufen jeweils in eigenen QUARC-Threads statt in
+    einer pollenden Hauptschleife, wodurch der deterministische Modelltakt
+    nicht durch TCP-Wartezeiten blockiert wird.
+    \item \textbf{Optimierung:} \emph{Minimum latency},
+    \emph{Receive/Send all data} -- es wird keine Pufferung zugunsten des
+    Durchsatzes vorgenommen.
+\end{itemize}
+
+Durch die Trennung in zwei Clients, einen für das zyklische Lesen der
+Ist-Position und einen für das Schreiben von Kommandos, entkoppelt Lese-
+und Schreibpfade voneinander und vermeidet, dass ein langsamer
+Schreibzyklus die Positions-Rückmeldung verzögert (bzw. umgekehrt).
 
 \subsubsection{Senden und Empfangen}
+\label{sec:quarc-senden-empfangen}
 
-\subsubsection{Ablaufsteuerung}
+Auf Kommunikations-Ebene wird das aus Abschnitt~\ref{sec:friesen} bekannte
+\ac{kvp}-Nachrichtenformat verwendet (Kommando-Byte, Längenfelder,
+Variablenname, Wert).
+Jedoch werden nun diese Bytefolgen nicht mehr
+aus MATLAB, sondern aus dem Stateflow-Chart heraus erzeugt und über den
+QUARC-Stream gesendet. 
+Folgende Beispiele können dem Modell entnommen werden:
+
+\begin{itemize}
+    \item \textbf{Lesen} der Ist-Position: konstante Leseanfrage auf die
+    KRL-Variable \texttt{\$POS\_ACT} (siehe Abb.~\ref{fig:posact}).
+    \item \textbf{Schreiben} von Statusflags: Z.\,B.\ setzen
+    \texttt{buildEndTrueMsg()}/\texttt{buildEndFalseMsg()} die Variable
+    \texttt{ENDPROG} auf \texttt{TRUE}/\texttt{FALSE}.  \texttt{buildMode3Msg()} setzt in einer Nachricht
+    \texttt{PROGVAR\allowbreak=3}, \texttt{ACTFLAG=TRUE} und
+    \texttt{ENDPROG=TRUE}.
+    \item \textbf{Schreiben} einer Zielposition:
+    \texttt{buildTargetMsg(xTarget)} erzeugt einen KRL-Positionsstring \newline
+    (\verb|POS: X..., Y..., Z..., A..., B..., C..., S..., T...|) und schreibt ihn in die Variable
+    \texttt{MAT\_POS1}.
+\end{itemize}
+
+Empfangsseitig zerlegt ein \emph{MATLAB-Function}-Block die
+\ac{ascii}-Antwort der KR~C4, indem sie die Marker \verb|X|, \verb|Y|, \verb|Z|, \verb|A|, \verb|B|, \verb|C| im empfangenen Byte-Vektor
+sucht und die jeweils folgende Zahl (inkl.\ Vorzeichen und
+Nachkommastellen) manuell parst.
+Dadurch können die Nachrichten im QUARC-Echtzeitkontext ausgelesen werden.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/empfangenSc.png}
+    \caption{Empfangen und Verarbeiten der Positionsdaten}
+    \label{fig:posact}
+\end{figure}
 
 
-\subsection{Integration des Ultraschallsensors}
+\subsubsection{Ablaufsteuerung} \label{sec:quarc-ablaufsteuerung}
+
+Die Kommunikationssequenz ist als endliche Zustandsmaschine in
+Stateflow implementiert (siehe Abb.~\ref{fig:ablaufsteuerung}).
+Nach dem Start durchläuft sie zunächst die
+Initialisierung über \texttt{INIT\_END}, \texttt{WAIT\_END} und
+\texttt{SET\_MODE}. 
+Dabei wird zunächst \texttt{ENDPROG} gesetzt und anschließend der erforderliche Modus über
+\texttt{buildMode3Msg()} aktiviert.
+
+Anschließend beginnt der eigentliche Bewegungsablauf im Superstate
+\texttt{Moving}. 
+Dieser durchläuft \texttt{START\_MOVE} und \texttt{MOVE\_STEP}. 
+Dabei werden über \texttt{buildTargetMsg()} die Zielpositionen erzeugt und
+über den schreibenden \emph{Stream Client} an die KR~C4 übertragen. 
+Ist die Bedingung \texttt{threshold > sensorData} nicht erfüllt, wird der
+Zyklus nach 30 Ticks wiederholt.
+Bei Erfüllung der Bedingung wird der Bewegungsablauf über \texttt{STOP\_MOVE} beendet und anschließend
+\texttt{HOLD} erreicht.
+
+Das \texttt{writeEn}-Flag aktiviert dabei ausschließlich in den Schreibzuständen die Übertragung über den
+\emph{Stream Client}. 
+In den Wartezuständen bleibt der Schreibkanal inaktiv.
+Die Bedingung \texttt{threshold > sensorData} stellt zusätzlich einen Sicherheitsmechanismus dar.
+Dieser verhindert, dass der Roboterarm der Tischplatte zu nahe kommt bei falscher Befehlseingabe.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/ablaufsteuerung.png}
+    \caption{Zustandsmaschine der Ablaufsteuerung (Stateflow-Chart, eigene Darstellung).}
+    \label{fig:ablaufsteuerung}
+\end{figure}
+
+
+\subsection{Integration des Ultraschallsensors} \label{sec:sensor}
+
 
 \subsubsection{Hardware}
+Für die Realisierung der sensorbasierten Rückführung wurde ein Ultraschallsensor
+des Modells US-016 in den Versuchsaufbau integriert. Der Sensor erfasst den
+Abstand zum Messobjekt und stellt die Messinformation über einen analogen Ausgang
+bereit. Das Signal wird über die Quanser Q2-USB in das QUARC/Simulink-Modell
+eingelesen.
+
+Die elektrische Verschaltung des Sensors mit der Q2-USB ist in
+Abbildung~\ref{fig:ultraschall_verschaltung} dargestellt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{images/ultraschall_verschaltung.jpg}
+    \caption{Schematische Verschaltung des US-016-Ultraschallsensors mit der Quanser Q2-USB.}
+    \label{fig:ultraschall_verschaltung}
+\end{figure}
+
+Für die Versuchsdurchführung wurde der Ultraschallsensor am Greifer befestigt
+und so ausgerichtet, dass der Abstand in Bewegungsrichtung der z-Achse erfasst
+wurde. Je nach Anwendung kann der Sensor auch an einer anderen Position bzw.
+Orientierung am Roboter angebracht werden; die Zuordnung zur jeweiligen
+Bewegungsachse muss im Simulink-Modell entsprechend angepasst werden.
 
 \subsubsection{Sensorsignal}
+Der Ultraschallsensor stellt am Ausgang \texttt{OUT} ein analoges
+Spannungssignal bereit, dessen Wert vom gemessenen Abstand abhängt. Dieses
+Signal wird über den \texttt{HIL Read}-Block der Q2-USB in Simulink eingelesen.
+Anschließend wird das Signal durch die Faktoren 100 und 0,6144 skaliert und
+damit in einen Abstandswert in Zentimetern umgerechnet. Zur Reduzierung von
+Schwankungen und einzelnen Ausreißern wird anschließend ein Medianfilter mit
+einer Fensterlänge von fünf Messwerten verwendet.
+
+Die Signalverarbeitung im verwendeten Kalibriermodell ist in
+Abbildung~\ref{fig:ultraschall_signalverarbeitung} dargestellt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/sensor_calibration_simulink.jpg}
+    \caption{Signalverarbeitung und Kalibrierung des Ultraschallsensors im Simulink-Modell.}
+    \label{fig:ultraschall_signalverarbeitung}
+\end{figure}
+
+Zur Kalibrierung wurden Referenzmessungen bei Abständen von 10 bis 60 cm
+durchgeführt. Da die Abstände zunächst von der Sensorbasis aus gemessen wurden,
+wurde bei der Auswertung ein Offset von 1,2 cm berücksichtigt. Aus den
+Messwerten wurde anschließend eine lineare Kalibrierfunktion bestimmt:
+
+\begin{equation}
+    d_{\mathrm{kal}}
+    =
+    1{,}037297 \cdot d_{\mathrm{mess}}
+    - 0{,}596957\,\mathrm{cm}.
+\end{equation}
+
+Die daraus resultierende Kalibriergerade sowie die verwendeten Messpunkte sind
+in Abbildung~\ref{fig:ultraschall_kalibrierung} dargestellt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.50\textwidth]{images/kalibrierung_ultraschallsensors.png}
+    \caption{Lineare Kalibrierung des Ultraschallsensors unter Berücksichtigung des Offsets.}
+    \label{fig:ultraschall_kalibrierung}
+\end{figure}
 
 
-\subsection{Zusammenführung von Sensorik und Roboterkommunikation}
+Die ermittelten Parameter wurden im Kalibriermodell als Gain und Bias umgesetzt
+und liefern den korrigierten Abstandswert für die weitere Verarbeitung.
+
+\subsubsection{Ablaufsteuerung Stateflow (Vorwort für Regelungsstrategie)}
+\label{sec:AblaufsteuerungNico}
+
+Um lediglich eine Koordinate anzusteuern und dieses kontinuierlich zu bewegen, wurde eine Koordinate ausgewählt. Über einen Slider kann der Positionswert ausgewählt werden. Die Koordinate wird in das Chart übermittelt. 
+Dazu wurde unter anderem die Funktion \textit{buildTargetMsg()} so angepasst, dass nur die Slider-Variable übergeben wird. Die restlichen Koordinaten werden auf die absolute Position der Home-Position gesetzt. Somit bleiben diese beim Starten des Programms auf der Ausgangsposition.
+Für die Ansteuerung wurde die Z-Koordinate ausgewählt. Der Vorteil, diese Koordinate anzusteuern, besteht darin, dass man so den Abstand zu der Bodenplatte vorgeben kann. Des Weiteren ist die Anbringung des Sensors für erste Testzwecke einfach \textcolor{red}{(siehe Abbildung~\ref{fig:sensor_anbringung})}. Ebenso werden dabei keine Drehungen des Endeffektors ausgeführt, wie es bei den anderen Koordinaten der Fall gewesen wäre.
+Damit der Wert verändert werden kann und man nicht erneut den Start-Button zum Abfahren der Koordinate aktivieren muss, wurde nicht mehr gewartet, bis die Zielposition erreicht wurde, sondern der Write- und Wait-State wurden durch einen einzigen State, den \texttt{MOVE\_STEP}-State, ersetzt. Dieser besitzt eine Junction, die sich selbst wieder aufruft \ref{fig:junction}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.3\textwidth]{images/junction.png}
+    \caption{Selbstwiederaufruf des MOVE\_STEP-States mit priorisierter Stopp-Bedingung bei Unterschreitung eines Schwellwertes.}
+    \label{fig:junction}
+\end{figure}
 
 
-\subsection{Entwicklung der Regelungsstrategie}
+Um rechtzeitig reagieren zu können, falls die ausgewählte Position zu groß ist und der Roboter in eine gefährliche Position fährt, wird die Position schrittweise übergeben. Damit ist es möglich, den Not-Stopp rechtzeitig zu drücken.
+\\
+Die Schrittweite wurde durch einen Saturation-Block begrenzt. In diesem kann man einstellen, wie groß der maximale Wert sein darf, der weitergeleitet wird. Alle Werte darunter werden unverändert weitergeleitet.
+Da dadurch nur noch relative Schritte gemacht werden, wurde die Strecke zu einer integrierenden Strecke erweitert. Die Schritte, die aus dem Saturation-Block kommen, werden auf die aktuelle Position des Roboters aufaddiert.
 
+\subsection{Zusammenführung von Sensorik und Roboterkommunikation} \label{sec:regelung}
+
+Durch den \textit{HIL-Read}-Block wurde der Sensor in das Steuerungsprogramm implementiert. Da die DSP(Digital Signal Processing)-Toolbox für den Medianfilter nicht zur Verfügung stand, wurde dieser in einem \textit{MATLAB Function}-Block nachgebildet. Somit konnten die kalibrierten Sensorwerte in das Programm eingebracht werden.
+
+Durch das schrittweise Anfahren an die Sollposition ist es möglich, einen Mindestabstand zu implementieren. Wird dieser unterschritten, wird der \texttt{MOVE\_STEP}-State verlassen und vor der nächsten Bewegung muss erneut der Start-Button aktiviert werden. Damit diese Funktion Priorität besitzt, ist die entsprechende Bedingung als erste Junction eingetragen (vgl. Abbildung~\ref{fig:junction}).
+
+Zunächst wurden die Sensorausgabewerte simuliert. Dies ist ebenfalls mittels eines Sliders geschehen, sodass auch hier die Sensorwerte manuell dynamisch geändert werden konnten. Damit konnte sich der Ausgabewert langsam an den Sollwert anpassen, wodurch das Heranfahren simuliert wurde.
+
+
+\subsection{Entwicklung der Regelungsstrategie} 
+
+Der Sollabstand, den der Endeffektor einhalten soll, wird über eine Konstante vorgegeben, die über einen Slider einstellbar ist. 
+
+Für die Regelung wird die Differenz zwischen Sollabstand und Sensorwert auf die Ist-Koordinate aufaddiert. Somit wird die absolute Position als Ziel-Position des MOVE\_STEP-States übergeben. Da direkt die absoluten Positionen übermittelt werden, wird die Differenz ohne zusätzliche Verstärkung weitergeleitet \textcolor{red}{überprüfen ob das so stimmt-Laborversuch (P1 oder P 0.05)}.
+
+Auf diese Weise wird die Differenz direkt auf die Koordinate berechnet und der Endeffektor wird in der Simulation ohne Überschwingen an die Position geführt. Durch die integrierende Strecke tritt kein Positionsfehler auf, weshalb kein zusätzlicher I-Regler benötigt wird. \textcolor{red}{bzw mit leichtem Überschwingen - Laborversuch}. 
+
+
+Im realen Versuch war die Armbewegung stotternd, was auf die Kombination aus dem \textit{Saturation}-Block und der Befehlsübertragung zurückzuführen ist, da so der Arm auf den nächsten Befehl wartet. 
+
+Da der reale Sensor trotz des Medianfilters Schwankungen von $\pm\qty{2}{\cm}$ aufwies, zeigte der Endeffektor trotz Erreichen der Soll-Position leichte Ausgleichsbewegungen.
+Aufgrund dessen wurde dem Regler ein \textit{Dead-Zone}-Block vorgeschaltet. Damit hält der Endeffektor seinen Abstand innerhalb eines bewusst akzeptierten Toleranzbands von 2 cm ein, ohne auf Sensorrauschen mit Ausgleichsbewegungen zu reagieren. Dies stellt einen gezielten Kompromiss zwischen Positionsgenauigkeit und Regelstabilität dar.
+
+Des Weiteren neigte das System zu einem leichten Überschwingen \textcolor{red}{(siehe Abbildung~\ref{fig:ueberschwingen_realer_sensor} falls nicht reproduzierbar weglassen?)}.
+
+\bigskip
+Um eine flüssigere Bewegung zu erreichen, wurde der \textit{Saturation}-Block entfernt. Es wurde vermutet, dass der Arm dadurch direkt und stotterfrei auf die Sollposition fährt. Jedoch kam es dabei zu einem starken Überschwingen und einer langen Einpendeldauer \textcolor{red}{(siehe Abbildung~\ref{fig:signale}) - Laborversuch wiederholen wenn realer Sensor funktioniert}.
+
+
+
+ \begin{figure}[h]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/signaleEInzeln.png}
+        \caption{Bild der einzelnen Signale}
+        \label{fig:signaleEinzeln} % Label für Teilbild (a)
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/signaleZusammen.png}
+        \caption{Siganle übereinander gelegt}
+        \label{fig:signaleZusammen} % Label für Teilbild (b)
+    \end{subfigure}
+    
+    \caption{Vergleich von Target- und Ist-Position.}
+    \label{fig:signale} % Label für die gesamte Abbildung
+\end{figure}
+
+Vergleicht man die Zielposition (\textit{Target}) und die Ist-Position, wird deutlich, dass die Ist-Position dem Target hinterherhinkt [vgl. \ref{fig:signaleZusammen}]. Zudem werden nicht alle Targets angefahren; dies ist daran erkennbar, dass die Target-Werte eine Spitze bei $12{,}8$ aufweisen, die Ist-Positionen diese Spitze jedoch nicht erreichen. Die Grafik legt nahe, dass die Totzeit des Ist-Positionswertes für das starke Überschwingen verantwortlich war.
+
+Wurden zwischen den \texttt{MOVE\_STEP}-Zuständen $30$~Ticks gewartet, fuhr der Arm ohne Überschwingen auf die gewünschte Position. Allerdings benötigte das System diese $30$~Ticks, um eine Signaländerung wahrzunehmen.
 \subsubsection{Sprungversuch}
-\label{sec:sprungversuch}
 
-Zur ersten Charakterisierung der Regelstrecke mit dem realen
-Ultraschallsensor wurde ein Sprungversuch durchgeführt: Der
-Distanz-Sollwert (\texttt{soll}) wird bei $t=\SI{10.8}{\second}$ sprunghaft
-von \SI{30}{\centi\meter} auf \SI{20}{\centi\meter} reduziert, während die
-Robotersteuerung parallel den zugehörigen Positionsbefehl (\texttt{Target})
-sowie die tatsächliche Roboterposition (\texttt{istPosition}) in
-Millimeter mitschreibt. Abbildung~\ref{fig:realsensor_gesamt} zeigt alle
-fünf aufgezeichneten Signale überlagert, Abbildung~\ref{fig:realsensor_einzeln}
-dieselben Daten als Einzelplots.
+Für den Sprungversuch wurde im Simulink-Modell ein Step-Block verwendet.
+Als Anfangswert wurden \SI{574}{\milli\meter} und als Endwert
+\SI{579}{\milli\meter} eingestellt. Der Sprung erfolgte nach
+\SI{15}{\second}. Die vorgegebene Z-Position wurde an die KUKA-Steuerung
+übertragen, während die tatsächliche Z-Position über die Systemvariable
+\texttt{\$POS\_ACT} zurückgelesen und aufgezeichnet wurde. Die Abtastzeit des
+QUARC-Modells betrug $T_s=\SI{10}{\milli\second}$.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\linewidth]{images/realsensor_signale_gesamt.png}
-    \caption{Sprungversuch am realen Ultraschallsensor: alle Signale
-    überlagert, erzeugt mit \texttt{Auswertung\_RealSensor.m}.}
-    \label{fig:realsensor_gesamt}
-\end{figure}
+Die Sprungantwort zeigt nach einer anfänglichen Verzögerung einen
+näherungsweise PT1-förmigen Verlauf. Da der Sollwert und die stationäre
+Istposition jeweils um etwa \SI{5}{\milli\meter} ansteigen, ergibt sich für
+die Streckenverstärkung näherungsweise
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.9\linewidth]{images/realsensor_signale_einzeln.png}
-    \caption{Sprungversuch am realen Ultraschallsensor: Einzeldarstellung
-    aller fünf Signale.}
-    \label{fig:realsensor_einzeln}
-\end{figure}
+\begin{equation}
+    K =
+    \frac{\Delta Z_{\mathrm{Ist}}}
+         {\Delta Z_{\mathrm{Soll}}}
+    \approx 1.
+\end{equation}
 
-Vor dem Sprung befinden sich \texttt{Target} und \texttt{istPosition}
-praktisch deckungsgleich bei \SI{615.0}{\milli\meter}. Nach dem Sprung
-überschwingt \texttt{Target} auf ein Minimum von \SI{427.7}{\milli\meter}
-bei $t=\SI{12.3}{\second}$, \texttt{istPosition} folgt mit einer leichten
-Verzögerung auf ein Minimum von \SI{436.6}{\milli\meter} bei
-$t=\SI{13.2}{\second}$; beide pendeln sich anschließend auf den
-gemeinsamen Endwert von \SI{506.9}{\milli\meter} ein. Bezogen auf die
-Sprunghöhe von \SI{108.1}{\milli\meter} entspricht dies einem deutlichen
-Überschwingen von rund \SI{70}{\percent}; dies ist ein Hinweis auf ein eher
-schwach gedämpftes Übertragungsverhalten der aktuellen Reglerauslegung,
-das im Abschnitt zur Reglerparametrierung weiter untersucht werden sollte.
+Für ein PT1-Glied wird die Zeitkonstante $T$ über den Zeitpunkt bestimmt, an
+dem 63,2\,\% der gesamten Positionsänderung erreicht sind. Bei einer
+Positionsänderung von \SI{5}{\milli\meter} ergibt sich hierfür
 
-Anhand des Zeitversatzes zwischen \texttt{Target} und \texttt{istPosition}
-(Nulldurchgang jeweils beim Mittelwert zwischen Ausgangs- und Endwert)
-ergibt sich eine erste grobe Schätzung der Gesamt-Totzeit des Systems von
-rund \SI{0.8}{\second}; eine genauere Bestimmung erfolgt im nachfolgenden
-Abschnitt zur Totzeit.
+\begin{equation}
+    \SI{574}{\milli\meter}
+    + 0{,}632 \cdot \SI{5}{\milli\meter}
+    =
+    \SI{577.16}{\milli\meter}.
+\end{equation}
 
-Der Reglerausgang (\texttt{Regler}) liegt vor dem Sprung bei $\approx 0$
-und springt exakt mit dem Sollwertsprung auf seinen unteren Grenzwert von
-$-80$, an dem er für \SI{1.5}{\second} ($t=\SI{10.8}{\second}$ bis
-$\SI{12.3}{\second}$) verharrt, bevor er durch Null läuft, kurzzeitig
-positiv auf bis zu $+30$ überschwingt ($t\approx\SI{14.0}{\second}$) und
-sich anschließend wieder bei $\approx 0$ einpendelt. Die über 16
-aufeinanderfolgende Samples exakt konstante Auslenkung deutet auf eine
-reale Begrenzung (Sättigung) des Stellsignals hin, die während der starken
-initialen Korrekturbewegung aktiv wird (namensgebend für den Ordner
-\texttt{Real Sensor Test with Saturation} dieser Messung).
-% TODO: Zusammenhang zwischen dieser Stellgrößen-Sättigung und einer
-% möglichen Totzone des Reglers noch zu klären (Rücksprache im Team
-% ausstehend).
+Aus der gemessenen Sprungantwort ergibt sich näherungsweise
 
-Die Sensor-Messung selbst pendelt sich nach dem Sprung mit einer
-Restabweichung von nur \SI{-0.1}{\centi\meter} praktisch exakt auf den
-neuen Sollwert von \SI{20}{\centi\meter} ein.
+\begin{equation}
+    T \approx \SI{0.08}{\second}.
+\end{equation}
+
+Damit kann der verzögerungsfreie Anteil der Strecke näherungsweise durch
+
+\begin{equation}
+    G_0(s) =
+    \frac{1}{0{,}08s + 1}
+\end{equation}
+
+beschrieben werden. Die Totzeit wird im folgenden Abschnitt separat bestimmt.
 
 \subsubsection{Totzeit}
 
+Zur Bestimmung der Totzeit wurde derselbe Positionssprung von
+\SI{574}{\milli\meter} auf \SI{579}{\milli\meter} verwendet. Als
+Sprungzeitpunkt $t_0$ wurde die Änderung des Sollwertes definiert. Der
+Reaktionszeitpunkt $t_1$ wurde erreicht, sobald die über
+\texttt{\$POS\_ACT} erfasste Istposition um mindestens
+\SI{0.1}{\milli\meter} von ihrer Ausgangsposition abwich und diese Abweichung
+für mindestens drei aufeinanderfolgende Abtastschritte bestehen blieb.
+
+Die Totzeit ergibt sich damit zu
+
+\begin{equation}
+    T_t = t_1 - t_0.
+\end{equation}
+
+Abbildung~\ref{fig:sprungantwort_totzeit} zeigt beispielhaft Messung 5, bei
+der eine Totzeit von $T_t=\SI{360}{\milli\second}$ bestimmt wurde.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{images/sprungantwort_soll_ist.jpeg}
+    \caption{Beispielhafte Bestimmung der Totzeit zwischen Z-Soll- und
+    Z-Istposition für Messung 5 ($T_t=\SI{360}{\milli\second}$).}
+    \label{fig:sprungantwort_totzeit}
+\end{figure}
+
+Der Versuch wurde fünfmal unter vergleichbaren Bedingungen wiederholt.
+Dabei wurden Totzeiten von \SI{340}{\milli\second},
+\SI{300}{\milli\second}, \SI{290}{\milli\second},
+\SI{330}{\milli\second} und \SI{360}{\milli\second} bestimmt.
+Der arithmetische Mittelwert beträgt \SI{324}{\milli\second}. Für die weitere
+Modellierung wird daher
+
+\begin{equation}
+    T_t \approx \SI{0.324}{\second}
+\end{equation}
+
+verwendet. Bei einer Abtastzeit von $T_s=\SI{10}{\milli\second}$ entspricht
+dies näherungsweise 32 Abtastschritten.
+
+Zusammen mit den in Abschnitt~4.5.1 bestimmten Parametern ergibt sich damit
+das angenäherte Streckenmodell
+
+\begin{equation}
+    G_S(s) =
+    \frac{1}{0{,}08s + 1}
+    e^{-0{,}324s}.
+\end{equation}
+
 \subsubsection{Reglerparametrierung}
+
+Nico?
+
+\subsubsection{Umsetzung der Smith-Kompensation}
+
+Aufbauend auf dem in Abschnitt~3.6.3 beschriebenen Prinzip wurde der
+Smith-Prädiktor testweise in das Regelungsmodell integriert. Ziel war es zu
+untersuchen, ob sich der Einfluss der vorhandenen Totzeit verringern und
+dadurch die Wartezeit zwischen den Positionsaktualisierungen reduzieren lässt.
+
+Als Eingang des Prädiktors wurde die tatsächlich an den Roboter übertragene
+Z-Position verwendet. Diese wurde aus der von Stateflow erzeugten Nachricht
+\texttt{writeMsg} ausgelesen. Damit wird nicht ein bereits intern berechneter,
+sondern der tatsächlich gesendete Zielwert für die Prädiktion verwendet.
+
+Abbildung~\ref{fig:smith_simulink} zeigt die im Simulink-Modell umgesetzte
+Struktur. Das Modell berechnet eine Vorhersage ohne Verzögerung
+(\texttt{zHatOhne}) und eine verzögerte Vorhersage
+(\texttt{zHatMit}). Die daraus entstehende Smith-Korrektur wird mit dem
+Faktor $0{,}3$ gewichtet und zum realen Sensorsignal addiert. Das resultierende
+Signal \texttt{Sensor\_pred} wird anschließend dem Regler zurückgeführt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\linewidth]{images/smith_simulink.png}
+    \caption{Experimentelle Umsetzung der Smith-Kompensation im
+    Simulink-Modell.}
+    \label{fig:smith_simulink}
+\end{figure}
+
+Als Ausgangspunkt wurden die zuvor bestimmten Streckenparameter verwendet.
+Im Verlauf der Versuche wurde das Prädiktormodell angepasst. Für die zuletzt
+durchgeführten Tests wurden $T_1=\SI{0.3}{\second}$, eine Verzögerung von
+fünf Abtastschritten bei $T_s=\SI{0.1}{\second}$ sowie ein
+Gewichtungsfaktor von $0{,}3$ verwendet.
+
+Der Smith-Prädiktor wurde nur experimentell untersucht und nicht in die
+final verwendete Regelung übernommen. Die Ergebnisse der Versuche werden
+in Kapitel~5 bewertet.

@@ -140,25 +140,54 @@ Bahn-Genauigkeit dieser Messung bilden die MATLAB/KVP-Baseline aus
 Anforderung~3 und dienen als Vergleichsmaßstab für die spätere
 QUARC-Implementierung.
 
-\subsection{Zykluszeitmessung der QUARC/Simulink-Anbindung}
+\subsection{Zykluszeitmessung der QUARC/ Simulink-Anbindung}
 \label{sec:quarc_zykluszeit}
+Ergänzend zur MATLAB/KVP-Baseline (Abschnitt~\ref{sec:baseline}) wurde das
+zeitliche Verhalten der neuen QUARC/Simulink-Anbindung untersucht.
 
-Ergänzend zur MATLAB/KVP-Baseline (Abschnitt~\ref{sec:baseline}) wurde die
-Zykluszeit-Zuverlässigkeit der neuen QUARC/Simulink-Anbindung untersucht.
+Hierzu wurde zunächst dieselbe Fünf-Punkt-Wegpunktbahn ohne Sensorregelung
+verwendet. Dadurch konnte überprüft werden, ob die neue QUARC-basierte
+Anbindung die Bahnkommandos funktional reproduzieren kann, ohne dass
+Sensorik oder Regelung die Untersuchung beeinflussen. Gleichzeitig wurde
+die Zuverlässigkeit des QUARC-Modelltakts untersucht.
+
 Das verwendete Simulink-Modell (\texttt{SuR\_Projekt\_Wegpunkt\_v3.slx})
 sendet die Bahnsollwerte PC-seitig deterministisch über den
-QUARC-Echtzeitkern, wartet jedoch in dieser Ausbaustufe noch nicht auf eine
-Rückmeldung des \ac{krl}-Programms auf der Steuerung (Pollen); die
-entsprechende Erweiterung war zum Zeitpunkt dieser Messung noch nicht
-abgeschlossen. Gemessen wurde daher zunächst nur, ob QUARC seinen eigenen
-Modelltakt von \SI{100}{\milli\second} während der Laufzeit einhält; analog
-zur Baseline-Messung wurden dazu 5 identische Messläufe durchgeführt
+QUARC-Echtzeitkern, wartet jedoch in dieser Ausbaustufe nicht auf eine
+Rückmeldung des \ac{krl}-Programms auf der Steuerung (Pollen).
+Die entsprechende Erweiterung war zum Zeitpunkt dieser Messung noch nicht
+abgeschlossen.
+
+Gemessen wurde daher zunächst nur, ob QUARC seinen eigenen
+Modelltakt von \SI{100}{\milli\second} während der Laufzeit einhält.
+Analog zur Baseline-Messung wurden dazu 5 identische Messläufe durchgeführt
 (\texttt{QUARC\_Messung\_1}--\texttt{5.mat}). Ausgewertet wurden die
 geloggten Signale \texttt{cycleTime\_QUARC}, \texttt{measurementActive\_QUARC}
 und \texttt{time\_QUARC}, jeweils ohne den ersten Sample pro Lauf (kein
 vollständiger Messzyklus). Auswertung und Abbildungen erzeugt das
 MATLAB-Skript \texttt{auswertung\_quarc.m}, das die Struktur von
 \texttt{auswertung\_baseline.m} übernimmt.
+Anders als in dem Modell mit Sensor und Regelung werden hier nur die fünf Wegpunkte nach und nach vorgegeben und angefahren.
+Ein generierter \ac{kvr}-Befehl kann dabei folgendermaßen aussehen:
+
+\begin{lstlisting}
+writeMsg = buildTargetMsg( ...
+    420.1710, -93.1800, 574.0360, ...
+    70.2850, 89.0000, 90.0000, ...
+    2, 42);
+\end{lstlisting}
+
+Zur Erfassung des Modelltakts kann der Quanser Time-Block verwendet werden.
+Die Schaltung hierfür ist in Abb.\ref{fig:timeblock} erkennbar.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/quanserTime.png}
+    \caption{Schaltung zur Takterfassung in Quanser}
+    \label{fig:timeblock}
+\end{figure}
+
+Hiermit kann die Dauer jedes Takts erfasst werden.
 
 \subsubsection{Zykluszeit}
 
@@ -286,7 +315,76 @@ Anforderung~3 ist das PC-seitige Timing damit ein notwendiger, aber noch
 nicht hinreichender Baustein; die vollständige Ende-zu-Ende-Messung setzt
 die noch ausstehende Polling-Implementierung auf QUARC-Seite voraus.
 
-\subsection{QUARC-Portierung, Kraftsensor-Integration und Regelungsapplikation}
+\subsection{Regelungsversuche und Bewertung}
 
-%% TODO: noch offen -- Inhalt folgt, sobald die entsprechenden
-%% Projektarbeiten (Anforderungen 1, 2, 4) durchgeführt wurden.
+Zur Bewertung des Regelungs- und Sensorverhaltens wurde ein Versuch mit dem
+realen Ultraschallsensor durchgeführt. Dabei wurde der Distanz-Sollwert
+(\texttt{soll}) bei $t=\SI{10.8}{\second}$ von
+\SI{30}{\centi\meter} auf \SI{20}{\centi\meter} reduziert.
+Parallel wurden der Positionsbefehl (\texttt{Target}), die tatsächliche
+Roboterposition (\texttt{istPosition}), der Reglerausgang und das
+Sensorsignal aufgezeichnet. Abbildung~\ref{fig:realsensor_einzeln} zeigt die
+aufgenommenen Signalverläufe.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\linewidth]{images/realsensor_signale_einzeln.png}
+    \caption{Signalverläufe beim Regelungsversuch mit realem Ultraschallsensor.}
+    \label{fig:realsensor_einzeln}
+\end{figure}
+
+Vor der Sollwertänderung liegen \texttt{Target} und \texttt{istPosition}
+nahezu deckungsgleich bei \SI{615.0}{\milli\meter}. Nach der Änderung erreicht
+\texttt{Target} zunächst ein Minimum von \SI{427.7}{\milli\meter}, während
+\texttt{istPosition} zeitlich verzögert auf ein Minimum von
+\SI{436.6}{\milli\meter} folgt. Anschließend nähern sich beide Signale einem
+stationären Wert von etwa \SI{506.9}{\milli\meter} an. Dabei zeigt sich ein
+deutliches Überschwingen der Roboterbewegung.
+
+Der sichtbare Zeitversatz zwischen \texttt{Target} und
+\texttt{istPosition} verdeutlicht die Verzögerung des Systems. Die
+Totzeit wurde unabhängig davon im Sprungversuch in Abschnitt~4.5.2
+experimentell bestimmt.
+
+Der Reglerausgang erreicht unmittelbar nach der Sollwertänderung zunächst
+seinen unteren Grenzwert von $-80$. Nach der ersten Korrekturbewegung ändert
+das Stellsignal sein Vorzeichen und nähert sich anschließend wieder einem
+Wert nahe Null. Dies zeigt, dass die Begrenzung des Stellsignals während der
+starken anfänglichen Korrektur aktiv wird.
+
+Das Sensorsignal nähert sich nach der Sollwertänderung dem vorgegebenen
+Abstand von \SI{20}{\centi\meter} an. Im stationären Zustand verbleibt nur
+eine Abweichung von etwa \SI{0.1}{\centi\meter}. Im realen Betrieb traten
+jedoch Schwankungen des Sensorsignals auf, die zu kleinen
+Ausgleichsbewegungen des Endeffektors führten. Aus diesem Grund wurde in der
+Regelung eine Dead Zone verwendet, damit kleine Messwertschwankungen nicht
+direkt in neue Bewegungsbefehle umgesetzt werden.
+
+Der Versuch zeigt damit, dass der vorgegebene Abstand grundsätzlich erreicht
+wird, während Totzeit, Begrenzung des Stellsignals und Schwankungen des
+Ultraschallsensors das dynamische Regelverhalten beeinflussen.
+Ergänzend wurde die in Abschnitt~4.5.4 beschriebene Smith-Kompensation
+praktisch untersucht. Ausgangspunkt war eine Wartezeit von 30 Ticks zwischen
+zwei Positionsaktualisierungen. Mit aktivierter Smith-Kompensation wurde
+anschließend eine reduzierte Wartezeit von 20 Ticks getestet, wobei im
+durchgeführten Versuch kein instabiles Verhalten auftrat. Bei einer weiteren
+Reduktion auf 10 Ticks kam es dagegen zu starken Schwingungen, sodass der
+Versuch aus Sicherheitsgründen abgebrochen wurde.
+Abbildung~\ref{fig:smith_20ticks} zeigt den Signalverlauf des stabilen
+Versuchs mit 20 Ticks.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\linewidth]{images/smith_20ticks.png}
+    \caption{Regelungsverhalten mit aktivierter Smith-Kompensation bei
+    einer Wartezeit von 20 Ticks zwischen den Positionsaktualisierungen.}
+    \label{fig:smith_20ticks}
+\end{figure}
+
+Eine weitere systematische Untersuchung war anschließend nicht mehr möglich,
+da der Ultraschallsensor keine zuverlässigen Messwerte mehr lieferte.
+Daher lässt sich aus den durchgeführten Versuchen keine robuste Verbesserung
+des Gesamtsystems durch die Smith-Kompensation ableiten. Im durchgeführten
+Versuch blieb das System mit aktivierter Smith-Kompensation bei einer
+Wartezeit von 20 Ticks stabil. Die Smith-Kompensation wurde nicht in die
+final verwendete Regelungsversion übernommen.
